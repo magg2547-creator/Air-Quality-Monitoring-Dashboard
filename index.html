@@ -707,22 +707,29 @@
         gap: 12px;
       }
 
-      .header-left  { gap: 12px; }
+      .header-left { gap: 12px; }
 
-      /* ปุ่มแถวล่าง เต็มความกว้าง */
+      /* ปุ่มแถวล่าง: grid 2x2 */
       .header-right {
         width: 100%;
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
         gap: 6px;
       }
       .header-right .pill { display: none; }
       .header-right .btn  {
-        padding: 9px 6px;
-        font-size: 0.74rem;
+        padding: 10px 8px;
+        font-size: 0.78rem;
         justify-content: center;
         white-space: nowrap;
+        min-width: 0;
+        gap: 5px;
       }
+      /* Export PDF ยาวเต็มแถว */
+      .header-right .btn-pdf { grid-column: 1 / -1; }
+      /* CSV สีน้ำเงิน */
+      .header-right .btn-csv { color: var(--accent); border-color: var(--accent); }
 
       .header-title h1 { font-size: 1.05rem; }
       .header-title p  { display: none; }
@@ -758,12 +765,9 @@
 
       .header-title h1 { font-size: 0.92rem; }
 
-      /* header ปุ่ม 2x2 grid */
-      .header-right {
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-      }
-      .btn-primary { grid-column: span 2; }
+      /* header ปุ่ม grid 2x2 เหมือนกัน */
+      .header-right { gap: 5px; }
+      .header-right .btn { padding: 9px 6px; font-size: 0.73rem; }
 
       .cards-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -793,6 +797,14 @@
         justify-content: space-between;
       }
       #dateFilter { flex: 1; min-width: 0; width: 100%; }
+    }
+
+    /* ===========================
+       RESPONSIVE — Very small (320px)
+    =========================== */
+    @media (max-width: 360px) {
+      .btn-label { display: none; }
+      .header-right .btn { padding: 9px 6px; font-size: 0.75rem; }
     }
 
     /* ===========================
@@ -1249,28 +1261,24 @@
         <span class="dot" id="headerDot"></span>
         <span id="headerStatus">Offline</span>
       </div>
-      <button class="btn btn-outline" onclick="openQR()" title="QR Code" style="gap:6px;padding:8px 16px">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- มุมซ้ายบน -->
+      <button class="btn btn-outline btn-qr" onclick="openQR()" title="QR Code">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
           <rect x="3" y="3" width="2" height="2" fill="currentColor"/>
-          <!-- มุมขวาบน -->
           <rect x="11" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
           <rect x="13" y="3" width="2" height="2" fill="currentColor"/>
-          <!-- มุมซ้ายล่าง -->
           <rect x="1" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
           <rect x="3" y="13" width="2" height="2" fill="currentColor"/>
-          <!-- data dots -->
           <rect x="11" y="11" width="2" height="2" fill="currentColor"/>
           <rect x="14" y="11" width="2" height="2" fill="currentColor"/>
           <rect x="11" y="14" width="2" height="2" fill="currentColor"/>
           <rect x="14" y="14" width="2" height="2" fill="currentColor"/>
         </svg>
-        QR
+        <span class="btn-label">QR</span>
       </button>
-      <button class="btn btn-outline" onclick="loadData()">⟳ Refresh</button>
-      <button class="btn btn-outline" onclick="downloadCSV()" style="color:var(--accent);border-color:var(--accent)">⬇ CSV</button>
-      <button class="btn btn-primary" onclick="exportPDF()">🖨 Export PDF</button>
+      <button class="btn btn-outline btn-refresh" onclick="loadData()">⟳ <span class="btn-label">Refresh</span></button>
+      <button class="btn btn-outline btn-csv" onclick="downloadCSV()">⬇ <span class="btn-label">CSV</span></button>
+      <button class="btn btn-primary btn-pdf" onclick="exportPDF()">🖨 <span class="btn-label">Export PDF</span></button>
     </div>
   </header>
 
@@ -1540,8 +1548,6 @@
                 font-size:0.78rem;
                 outline:none;
                 cursor:pointer;
-                -webkit-appearance:none;
-                appearance:none;
                 min-width:130px;
               "/>
           </div>
