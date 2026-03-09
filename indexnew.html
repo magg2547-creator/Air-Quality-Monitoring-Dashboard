@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Air Quality Monitoring Dashboard</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <style>
+    /* ===========================
+       CSS VARIABLES & RESET
+    =========================== */
+    :root {
+      --bg:         #f0f4f8;
+      --surface:    #ffffff;
+      --surface2:   #f1f5f9;
+      --border:     rgba(0,0,0,0.08);
+      --text:       #0f172a;
+      --muted:      #64748b;
+      --accent:     #0284c7;
+      --accent2:    #7c3aed;
+
+      --good:       #78be21;
+      --moderate:   #f5c400;
+      --unhealthy:  #f07d00;
+      --hazardous:  #dc2626;
+
+      --pm25-color: #0284c7;
+      --pm10-color: #7c3aed;
+      --temp-color: #ea580c;
+      --hum-color:  #16a34a;
+
+      --radius:     14px;
+      --radius-lg:  20px;
+      --shadow:     0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg:  0 8px 32px rgba(0,0,0,0.12);
+      --font-mono:  'Space Mono', monospace;
+      --font-body:  'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(2,132,199,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(124,58,237,0.05) 0%, transparent 60%);
+    }
+
+    /* ===========================
+       SCROLLBAR
+    =========================== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 99px; }
+
+    /* ===========================
+       LAYOUT WRAPPERS
+    =========================== */
+    .wrapper {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 24px 48px;
+    }
+
+    /* ===========================
+       HEADER
+    =========================== */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 28px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 16px; }
+
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 16px rgba(2,132,199,0.3);
+      flex-shrink: 0;
+    }
+
+    .header-title h1 {
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .header-title p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 2px;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Pill badge */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 6px 14px;
+      border-radius: 99px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .pill .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.35; }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      border-radius: 99px;
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #0369a1);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(2,132,199,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(2,132,199,0.4); }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+
+    /* ===========================
+       CONFIG PANEL (Google Sheets)
+    =========================== */
+    .config-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .config-panel label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .config-panel input {
+      flex: 1;
+      min-width: 260px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .config-panel input:focus { border-color: var(--accent); }
+    .config-panel input::placeholder { color: var(--muted); }
+
+    /* ===========================
+       INSTRUCTIONS CALLOUT
+    =========================== */
+    .callout {
+      background: rgba(0,229,255,0.04);
+      border: 1px solid rgba(0,229,255,0.15);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      margin-bottom: 28px;
+      font-size: 0.8rem;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+    .callout strong { color: var(--accent); }
+    .callout code {
+      display: block;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 8px 0;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: #a5f3fc;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ===========================
+       SECTION TITLE
+    =========================== */
+    .section-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ===========================
+       SENSOR CARDS
+    =========================== */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .sensor-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 20px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .25s, box-shadow .25s;
+      cursor: default;
+    }
+    .sensor-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+    .sensor-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    .card-pm25::before  { background: var(--pm25-color); box-shadow: 0 0 8px rgba(2,132,199,0.4); }
+    .card-pm10::before  { background: var(--pm10-color); box-shadow: 0 0 8px rgba(124,58,237,0.4); }
+    .card-temp::before  { background: var(--temp-color); box-shadow: 0 0 8px rgba(234,88,12,0.4); }
+    .card-hum::before   { background: var(--hum-color);  box-shadow: 0 0 8px rgba(22,163,74,0.4);  }
+
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      margin-bottom: 14px;
+    }
+    .card-pm25 .card-icon  { background: rgba(2,132,199,0.1);   }
+    .card-pm10 .card-icon  { background: rgba(124,58,237,0.1);  }
+    .card-temp .card-icon  { background: rgba(234,88,12,0.1);   }
+    .card-hum  .card-icon  { background: rgba(22,163,74,0.1);   }
+
+    .card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .card-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .card-value {
+      font-family: var(--font-mono);
+      font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+      font-weight: 700;
+      line-height: 1;
+      transition: color .4s;
+    }
+    .card-pm25 .card-value { color: var(--pm25-color); }
+    .card-pm10 .card-value { color: var(--pm10-color); }
+    .card-temp .card-value { color: var(--temp-color); }
+    .card-hum  .card-value { color: var(--hum-color);  }
+
+    .card-unit { font-size: 0.75rem; color: var(--muted); }
+
+    .card-delta {
+      margin-top: 10px;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    /* ===========================
+       STATUS + GAUGE ROW
+    =========================== */
+    .status-gauge-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 900px) { .status-gauge-row { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) { .status-gauge-row { grid-template-columns: 1fr; } }
+
+    /* Air Quality Status Panel */
+    .status-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .aq-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 20px;
+      border-radius: 99px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      transition: all .5s;
+    }
+    .aq-status-badge .badge-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    .status-good        { background: rgba(120,190,33,.12);  color: #5a9a0a; border: 1px solid rgba(120,190,33,.35); }
+    .status-moderate    { background: rgba(245,196,0,.12);   color: #b8920a; border: 1px solid rgba(245,196,0,.35);  }
+    .status-unhealthy   { background: rgba(240,125,0,.12);   color: #c05c00; border: 1px solid rgba(240,125,0,.35);  }
+    .status-hazardous   { background: rgba(220,38,38,.12);   color: #b91c1c; border: 1px solid rgba(220,38,38,.35);  }
+    .status-vunhealthy  { background: rgba(139,63,168,.12);  color: #6b2d8b; border: 1px solid rgba(139,63,168,.35); }
+    .status-maroon      { background: rgba(125,0,35,.12);    color: #7d0023; border: 1px solid rgba(125,0,35,.35);   }
+
+    .status-scale { display: flex; gap: 3px; }
+    .scale-item { flex: 1; height: 6px; border-radius: 3px; }
+    .scale-item:nth-child(1) { background: #78be21; }
+    .scale-item:nth-child(2) { background: #f5c400; }
+    .scale-item:nth-child(3) { background: #f07d00; }
+    .scale-item:nth-child(4) { background: #dc2626; }
+    .scale-item:nth-child(5) { background: #8b3fa8; }
+    .scale-item:nth-child(6) { background: #7d0023; }
+
+    .scale-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 5px;
+      font-size: 0.6rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Gauge Panel */
+    .gauge-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .gauge-wrap { position: relative; width: 200px; height: 110px; }
+    .gauge-svg  { width: 100%; overflow: visible; }
+    .gauge-track { fill: none; stroke: var(--surface2); stroke-width: 13; stroke-linecap: round; }
+    .gauge-fill  {
+      fill: none; stroke-width: 13; stroke-linecap: round;
+      stroke: url(#gaugeGrad);
+      transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
+    }
+
+    .gauge-center-text {
+      position: absolute;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+    .gauge-number { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 700; color: var(--pm25-color); line-height: 1; }    .gauge-unit   { font-size: 0.65rem; color: var(--muted); }
+
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      width: 200px;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ===========================
+       CHARTS
+    =========================== */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 18px 14px;
+    }
+
+    .chart-card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .chart-card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .chart-container { position: relative; height: 190px; }
+
+    /* ===========================
+       ANALYTICS
+    =========================== */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .analytics-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      text-align: center;
+      transition: transform .2s;
+    }
+    .analytics-card:hover { transform: translateY(-2px); }
+
+    .analytics-label {
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .analytics-value { font-family: var(--font-mono); font-size: 1.45rem; font-weight: 700; color: var(--accent); }
+    .analytics-sub   { font-size: 0.62rem; color: var(--muted); margin-top: 4px; }
+
+    /* ===========================
+       BOTTOM ROW
+    =========================== */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 290px;
+      gap: 14px;
+    }
+    @media (max-width: 900px) { .bottom-row { grid-template-columns: 1fr; } }
+
+    /* Table */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+
+    .table-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 300px;
+      border-radius: 10px;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+
+    thead th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+      cursor: pointer;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      user-select: none;
+      transition: color .15s;
+    }
+    thead th:hover { color: var(--accent); }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody td {
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      white-space: nowrap;
+    }
+
+    td.ts     { color: var(--muted); font-size: 0.68rem; }
+    td.pm25v  { color: var(--pm25-color); }
+    td.pm10v  { color: var(--pm10-color); }
+    td.tempv  { color: var(--temp-color); }
+    td.humv   { color: var(--hum-color);  }
+
+    /* System Status */
+    .system-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sys-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 13px;
+      background: var(--surface2);
+      border-radius: 10px;
+      gap: 8px;
+    }
+
+    .sys-label { font-size: 0.7rem; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+    .sys-val   { font-family: var(--font-mono); font-size: 0.73rem; color: var(--text); font-weight: 600; text-align: right; }
+
+    .sys-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .sys-dot.live { background: var(--good); box-shadow: 0 0 6px var(--good); animation: pulse 2s infinite; }
+    .sys-dot.err  { background: var(--hazardous); }
+
+    /* Refresh bar */
+    .refresh-wrap {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 12px 13px;
+      margin-top: 4px;
+    }
+    .refresh-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.66rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .refresh-track { background: var(--bg); border-radius: 99px; height: 4px; overflow: hidden; }
+    .refresh-fill  {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      transition: width 1s linear;
+    }
+    /* ===========================
+       LOADING STATE
+    =========================== */
+    .loading-overlay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--surface2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===========================
+       TOAST
+    =========================== */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #f1f5f9;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all .3s;
+      z-index: 9999;
+      max-width: 320px;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ===========================
+       RESPONSIVE
+    =========================== */
+    @media (max-width: 480px) {
+      .wrapper { padding: 0 12px 32px; }
+      header   { padding: 18px 0 22px; }
+      .cards-grid   { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid  { grid-template-columns: 1fr; }
+      .analytics-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ===== PRINT / PDF STYLES ===== */
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+      body { background: #fff !important; font-size: 11pt; }
+
+      /* ซ่อนส่วนที่ไม่ต้องการใน PDF */
+      #splash, #topBar,
+      .header-right,
+      #settingsPanel,
+      .config-panel,
+      .refresh-bar-wrap,
+      .sys-section { display: none !important; }
+
+      /* Layout */
+      .wrapper { max-width: 100%; padding: 0 12px; }
+
+      header {
+        padding: 12px 0 16px;
+        border-bottom: 2px solid #0284c7;
+        margin-bottom: 16px;
+      }
+      .logo-icon { width: 36px; height: 36px; font-size: 18px; }
+      h1 { font-size: 16pt; }
+      header p { font-size: 9pt; }
+
+      /* Cards — 4 in a row */
+      .cards-grid { grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px; }
+      .sensor-card { padding: 12px; break-inside: avoid; }
+      .card-value { font-size: 1.6rem; }
+
+      /* Status + Gauge row */
+      .status-gauge-row { grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+      .status-panel, .gauge-panel { padding: 12px; break-inside: avoid; }
+
+      /* Charts — 3 columns จะแคบเกิน พับเป็น 1 คอลัมน์ */
+      .section-title { font-size: 8pt; margin-bottom: 8px; margin-top: 14px; }
+      .charts-grid { grid-template-columns: 1fr; gap: 10px; }
+      .chart-card { break-inside: avoid; padding: 12px; }
+      .chart-container { height: 180px !important; }
+
+      /* Analytics */
+      .analytics-grid { grid-template-columns: repeat(3,1fr); gap: 8px; }
+      .analytics-card { padding: 10px; break-inside: avoid; }
+
+      /* Table */
+      .table-card { break-inside: avoid; }
+      .table-scroll { max-height: none !important; overflow: visible !important; }
+      .table-header-row { display: none; }
+      table { font-size: 8pt; }
+      th, td { padding: 5px 8px; }
+
+      /* Page breaks */
+      .charts-grid, .analytics-grid { page-break-before: auto; }
+
+      /* Footer timestamp */
+      .wrapper::after {
+        content: 'Generated: ' attr(data-export-time);
+        display: block;
+        text-align: right;
+        font-size: 7pt;
+        color: #94a3b8;
+        margin-top: 16px;
+        padding-top: 8px;
+        border-top: 1px solid #e2e8f0;
+      }
+    }
+
+    /* ===========================
+       SMOOTH UX ENHANCEMENTS
+    =========================== */
+
+    /* Card value flip animation เมื่อค่าเปลี่ยน */
+    @keyframes valueFlip {
+      0%   { opacity: 0; transform: translateY(-8px) scale(0.95); }
+      100% { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+    .card-value.updating {
+      animation: valueFlip .35s cubic-bezier(.34,1.4,.64,1) both;
+    }
+
+    /* Skeleton loading */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position:  400px 0; }
+    }
+    .skeleton {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--surface2) 25%, #e2e8f0 50%, var(--surface2) 75%);
+      background-size: 400px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 6px;
+      color: transparent !important;
+      user-select: none;
+      min-width: 60px;
+    }
+
+    /* Table row fade-in */
+    @keyframes rowFadeIn {
+      from { opacity: 0; transform: translateX(-6px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    tbody tr {
+      animation: rowFadeIn .25s ease both;
+    }
+    /* Stagger ด้วย JS แต่ cap ที่ 20 rows เพื่อ performance */
+
+    /* Analytics value count-up flash */
+    @keyframes statPop {
+      0%   { opacity: 0; transform: scale(0.8); }
+      70%  { transform: scale(1.08); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .analytics-value.pop {
+      animation: statPop .4s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    /* Gauge number pop */
+    .gauge-number.pop {
+      animation: statPop .5s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    /* AQ badge smooth transition */
+    .aq-status-badge {
+      transition: background .5s ease, color .5s ease,
+                  border-color .5s ease, box-shadow .3s ease;
+    }
+
+    /* Button active press */
+    .btn:active { transform: scale(0.96) !important; transition: transform .08s !important; }
+
+    /* Smooth table scroll */
+    .table-scroll { scroll-behavior: smooth; }
+
+    /* Settings panel slide-down */
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #settingsPanel[style*="block"] {
+      animation: slideDown .2s ease both;
+    }
+
+    /* Header dot glow pulse on Live */
+    @keyframes livePulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(120,190,33,0.5); }
+      50%     { box-shadow: 0 0 0 5px rgba(120,190,33,0); }
+    }
+    #headerDot.live-glow {
+      animation: livePulse 2s ease infinite;
+    }
+
+    /* Toast slide+fade improved */
+    #toast {
+      transition: transform .3s cubic-bezier(.34,1.4,.64,1), opacity .3s ease;
+    }
+
+    /* Refresh fill bar ease */
+    .refresh-fill { transition: width 1s cubic-bezier(.4,0,.2,1); }
+  </style>
+</head>
+<body>
+
+<!-- Top loading bar -->
+<div id="topBar" style="
+  position:fixed;top:0;left:0;width:0%;height:3px;z-index:99999;
+  background:linear-gradient(90deg,#0284c7,#7c3aed,#0284c7);
+  background-size:200% 100%;
+  border-radius:0 2px 2px 0;
+  transition:width .3s ease,opacity .4s ease;
+  opacity:0;
+"></div>
+
+<!-- Splash / Loading Screen -->
+<div id="splash">
+  <div class="splash-bg"></div>
+  <div class="splash-content">
+    <div class="splash-logo" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="22" fill="url(#grad1)"/>
+  <!-- Leaf -->
+  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Air waves right side -->
+  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+</svg></div>
+    <div class="splash-title">Air Quality<br>Monitoring</div>
+    <div class="splash-sub">Real-time Environmental Monitoring System</div>
+    <div class="splash-bar-wrap">
+      <div class="splash-bar" id="splashBar"></div>
+    </div>
+    <div class="splash-status" id="splashStatus">กำลังเชื่อมต่อ…</div>
+  </div>
+</div>
+
+<style>
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f0f4f8;
+  transition: opacity .6s ease, visibility .6s ease;
+}
+#splash.hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Animated background blobs */
+.splash-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.splash-bg::before,
+.splash-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: blobFloat 6s ease-in-out infinite alternate;
+}
+.splash-bg::before {
+  width: 500px; height: 500px;
+  background: rgba(2,132,199,0.12);
+  top: -100px; left: -100px;
+}
+.splash-bg::after {
+  width: 400px; height: 400px;
+  background: rgba(124,58,237,0.10);
+  bottom: -80px; right: -80px;
+  animation-delay: -3s;
+}
+@keyframes blobFloat {
+  from { transform: translate(0,0) scale(1); }
+  to   { transform: translate(40px,30px) scale(1.1); }
+}
+
+.splash-content {
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.splash-logo {
+  width: 80px; height: 80px;
+  background: linear-gradient(135deg, #0284c7, #7c3aed);
+  border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 38px;
+  box-shadow: 0 8px 32px rgba(2,132,199,0.35);
+  animation: logoPop .6s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes logoPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.splash-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  animation: fadeUp .5s .15s both;
+}
+
+.splash-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  animation: fadeUp .5s .25s both;
+}
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.splash-bar-wrap {
+  width: 220px;
+  height: 4px;
+  background: rgba(2,132,199,0.12);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 8px;
+  animation: fadeUp .5s .35s both;
+}
+.splash-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #0284c7, #7c3aed);
+  border-radius: 99px;
+  transition: width .4s ease;
+}
+
+.splash-status {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  animation: fadeUp .5s .4s both;
+}
+</style>
+
+<div class="wrapper">
+
+  <!-- =======================
+       HEADER
+  ======================== -->
+  <header>
+    <div class="header-left">
+      <!-- คลิก logo 3 ครั้งติดกัน เพื่อเปิด Settings -->
+      <div class="logo-icon" id="logoTrigger" title="" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="48" height="48" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="22" fill="url(#grad2)"/>
+  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+</svg></div>
+      <div class="header-title">
+        <h1>Air Quality Monitoring Dashboard</h1>
+        <p>Real-time Environmental Monitoring System</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="pill">
+        <span class="dot" id="headerDot"></span>
+        <span id="headerStatus">Offline</span>
+      </div>
+      <button class="btn btn-outline" onclick="loadData()">⟳ Refresh</button>
+      <button class="btn btn-outline" onclick="downloadCSV()" style="color:var(--accent);border-color:var(--accent)">⬇ CSV</button>
+      <button class="btn btn-primary" onclick="exportPDF()">🖨 Export PDF</button>
+    </div>
+  </header>
+
+  <!-- Hidden Settings Panel (เปิดด้วยการคลิก logo 3 ครั้ง) -->
+  <div id="settingsPanel" style="
+    display:none;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:var(--radius-lg);
+    padding:20px 24px;
+    margin-bottom:20px;
+    box-shadow:var(--shadow-lg);
+    animation: fadeIn .2s ease;
+  ">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">⚙️ Settings</span>
+      <button onclick="closeSettings()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--muted);line-height:1">✕</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:0.78rem;color:var(--muted);white-space:nowrap">🔗 Apps Script URL</label>
+      <input type="text" id="sheetsUrl" style="
+        flex:1;min-width:260px;
+        background:var(--surface2);
+        border:1px solid var(--border);
+        border-radius:8px;
+        padding:9px 14px;
+        font-family:var(--font-mono);
+        font-size:0.74rem;
+        color:var(--text);
+        outline:none;
+      " placeholder="https://script.google.com/macros/s/…/exec"/>
+      <button class="btn btn-primary" onclick="saveAndLoad()">💾 Save & Load</button>
+    </div>
+  </div>
+
+  <style>
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    #logoTrigger { cursor: pointer; }
+    @keyframes barShimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+    #topBar.running { animation: barShimmer 1.2s linear infinite; }
+  </style>
+
+
+
+  <!-- =======================
+       SENSOR CARDS
+  ======================== -->
+  <div class="section-title">Current Readings</div>
+  <div class="cards-grid">
+    <div class="sensor-card card-pm25">
+      <div class="card-icon">💨</div>
+      <div class="card-label">PM2.5</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-pm25">—</div>
+        <div class="card-unit">µg/m³</div>
+      </div>
+      <div class="card-delta" id="delta-pm25">Awaiting data…</div>
+    </div>
+    <div class="sensor-card card-pm10">
+      <div class="card-icon">🌫️</div>
+      <div class="card-label">PM10</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-pm10">—</div>
+        <div class="card-unit">µg/m³</div>
+      </div>
+      <div class="card-delta" id="delta-pm10">Awaiting data…</div>
+    </div>
+    <div class="sensor-card card-temp">
+      <div class="card-icon">🌡️</div>
+      <div class="card-label">Temperature</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-temp">—</div>
+        <div class="card-unit">°C</div>
+      </div>
+      <div class="card-delta" id="delta-temp">Awaiting data…</div>
+    </div>
+    <div class="sensor-card card-hum">
+      <div class="card-icon">💧</div>
+      <div class="card-label">Humidity</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-hum">—</div>
+        <div class="card-unit">%</div>
+      </div>
+      <div class="card-delta" id="delta-hum">Awaiting data…</div>
+    </div>
+  </div>
+
+  <!-- =======================
+       STATUS + GAUGE
+  ======================== -->
+  <div class="status-gauge-row">
+
+    <!-- Air Quality Status -->
+    <div class="status-panel">
+      <div class="section-title" style="margin-bottom:0">Air Quality Index</div>
+
+      <div id="aqBadge" class="aq-status-badge status-good">
+        <span class="badge-dot" id="aqDot" style="background:var(--muted)"></span>
+        <span id="aqText">Waiting for data…</span>
+      </div>
+
+      <div>
+        <div class="status-scale">
+          <div class="scale-item"></div>
+          <div class="scale-item"></div>
+          <div class="scale-item"></div>
+          <div class="scale-item"></div>
+        </div>
+        <div class="scale-labels">
+          <span>0 Good</span>
+          <span>50 Moderate</span>
+          <span>100 Unhealthy</span>
+          <span>150+ Danger</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PM2.5 Gauge Meter -->
+    <div class="gauge-panel">
+      <div class="section-title" style="margin-bottom:0;width:100%">PM2.5 Gauge</div>
+      <div style="margin-top:14px">
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 200 110">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#78be21"/>
+                <stop offset="35%"  stop-color="#f5c400"/>
+                <stop offset="65%"  stop-color="#f07d00"/>
+                <stop offset="100%" stop-color="#dc2626"/>
+              </linearGradient>
+            </defs>
+            <path id="gaugeTrack" class="gauge-track" d="M 15 105 A 85 85 0 0 1 185 105"/>
+            <path id="gaugeFill"  class="gauge-fill"  d="M 15 105 A 85 85 0 0 1 185 105"/>
+          </svg>
+          <div class="gauge-center-text">
+            <div class="gauge-number" id="gaugeNum">—</div>
+            <div class="gauge-unit">µg/m³</div>
+          </div>
+        </div>
+        <div class="gauge-labels" style="width:200px">
+          <span>0</span>
+          <span style="position:relative;left:8px">75</span>
+          <span>150</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PM10 Gauge Meter -->
+    <div class="gauge-panel">
+      <div class="section-title" style="margin-bottom:0;width:100%">PM10 Gauge</div>
+      <div style="margin-top:14px">
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 200 110">
+            <defs>
+              <linearGradient id="gaugeGrad10" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#78be21"/>
+                <stop offset="35%"  stop-color="#f5c400"/>
+                <stop offset="65%"  stop-color="#f07d00"/>
+                <stop offset="100%" stop-color="#dc2626"/>
+              </linearGradient>
+            </defs>
+            <path id="gaugeTrack10" class="gauge-track" d="M 15 105 A 85 85 0 0 1 185 105"/>
+            <path id="gaugeFill10"  class="gauge-fill"  d="M 15 105 A 85 85 0 0 1 185 105" style="stroke:url(#gaugeGrad10)"/>
+          </svg>
+          <div class="gauge-center-text">
+            <div class="gauge-number" id="gaugeNum10" style="color:var(--pm10-color)">—</div>
+            <div class="gauge-unit">µg/m³</div>
+          </div>
+        </div>
+        <div class="gauge-labels" style="width:200px">
+          <span>0</span>
+          <span style="position:relative;left:8px">150</span>
+          <span>300</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================
+       CHARTS
+  ======================== -->
+  <div class="section-title">Trend Analysis</div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <span class="dot" style="background:var(--pm25-color)"></span>
+        PM2.5 Over Time
+      </div>
+      <div class="chart-container"><canvas id="chartPm25"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <span class="dot" style="background:var(--pm10-color)"></span>
+        PM10 Over Time
+      </div>
+      <div class="chart-container"><canvas id="chartPm10"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <span class="dot" style="background:var(--temp-color)"></span>
+        <span class="dot" style="background:var(--hum-color)"></span>
+        Temperature &amp; Humidity
+      </div>
+      <div class="chart-container"><canvas id="chartTempHum"></canvas></div>
+    </div>
+  </div>
+
+  <!-- =======================
+       ANALYTICS
+  ======================== -->
+  <div class="section-title">Analytics Summary</div>
+  <div class="analytics-grid">
+    <div class="analytics-card">
+      <div class="analytics-label">Avg PM2.5</div>
+      <div class="analytics-value" id="stat-avgPm25">—</div>
+      <div class="analytics-sub">µg/m³</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Max PM2.5</div>
+      <div class="analytics-value" id="stat-maxPm25" style="color:var(--hazardous)">—</div>
+      <div class="analytics-sub">µg/m³</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Min PM2.5</div>
+      <div class="analytics-value" id="stat-minPm25" style="color:var(--good)">—</div>
+      <div class="analytics-sub">µg/m³</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Avg Temperature</div>
+      <div class="analytics-value" id="stat-avgTemp" style="color:var(--temp-color)">—</div>
+      <div class="analytics-sub">°C</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Avg Humidity</div>
+      <div class="analytics-value" id="stat-avgHum" style="color:var(--hum-color)">—</div>
+      <div class="analytics-sub">%</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Total Records</div>
+      <div class="analytics-value" id="stat-total" style="color:var(--pm10-color)">—</div>
+      <div class="analytics-sub">data points</div>
+    </div>
+  </div>
+
+  <!-- =======================
+       TABLE + SYSTEM STATUS
+  ======================== -->
+  <div class="section-title">Historical Data &amp; System</div>
+  <div class="bottom-row">
+
+    <!-- Data Table -->
+    <div class="table-card">
+      <div class="table-header-row">
+        <span style="font-size:0.72rem;color:var(--muted)">Click column header to sort</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="position:relative">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.85rem;pointer-events:none">📅</span>
+            <input type="date" id="dateFilter"
+              oninput="filterByDate()"
+              style="
+                padding:7px 10px 7px 32px;
+                border:1px solid var(--border);
+                border-radius:8px;
+                background:var(--surface2);
+                color:var(--text);
+                font-family:var(--font-body);
+                font-size:0.78rem;
+                outline:none;
+                cursor:pointer;
+              "/>
+          </div>
+          <button onclick="clearDateFilter()" style="
+            padding:7px 12px;
+            border:1px solid var(--border);
+            border-radius:8px;
+            background:transparent;
+            color:var(--muted);
+            font-size:0.75rem;
+            cursor:pointer;
+            font-family:var(--font-body);
+            transition:all .15s;
+          " onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
+            ✕ Clear
+          </button>
+          <span id="filterCount" style="font-size:0.7rem;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th onclick="sortTable(0)">Timestamp ⇅</th>
+              <th onclick="sortTable(1)">PM2.5 ⇅</th>
+              <th onclick="sortTable(2)">PM10 ⇅</th>
+              <th onclick="sortTable(3)">Temp °C ⇅</th>
+              <th onclick="sortTable(4)">Humidity % ⇅</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr>
+              <td colspan="5">
+                <div class="loading-overlay">
+                  ℹ️ &nbsp;Load data to see historical records
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="system-card">
+      <div class="section-title" style="margin-bottom:4px">System Status</div>
+
+      <div class="sys-row">
+        <div class="sys-label">🕒 Last Update</div>
+        <div class="sys-val" id="sysLastUpdate">—</div>
+      </div>
+
+      <div class="sys-row">
+        <div class="sys-label">
+          <span class="sys-dot" id="sysDot"></span>
+          Connection
+        </div>
+        <div class="sys-val" id="sysConn">Offline</div>
+      </div>
+
+      <div class="sys-row">
+        <div class="sys-label">📊 Total Records</div>
+        <div class="sys-val" id="sysTotalRec">—</div>
+      </div>
+
+      <div class="sys-row">
+        <div class="sys-label">🔄 Auto Refresh</div>
+        <div class="sys-val">Every 5 min</div>
+      </div>
+
+      <!-- Countdown bar -->
+      <div class="refresh-wrap">
+        <div class="refresh-label">
+          <span>Next auto-refresh</span>
+          <span id="countdownText">5:00</span>
+        </div>
+        <div class="refresh-track">
+          <div class="refresh-fill" id="refreshFill" style="width:100%"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /bottom-row -->
+</div><!-- /wrapper -->
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+
+<script>
+// Air Quality Monitoring Dashboard — modularised script
+// Wrapped in an IIFE to avoid leaking internals into global scope.
+(function (global) {
+  /* ===================================================
+     STATE
+  =================================================== */
+  let allData  = [];      // All parsed rows
+  let sortCol  = 0;       // Current sort column index
+  let sortAsc  = false;   // Sort direction
+
+  /* ===================================================
+     COLUMN NAME NORMALIZER
+  =================================================== */
+  const COL_MAP = {
+    'Timestamp':   ['timestamp', 'time', 'datetime', 'date', 'เวลา', 'วันที่'],
+    'PM2.5':       ['pm2.5', 'pm25', 'pm2_5', 'pm2-5'],
+    'PM10':        ['pm10', 'pm_10'],
+    'Temperature': ['temperature', 'temp', 'อุณหภูมิ', 'tmp'],
+    'Humidity':    ['humidity', 'humi', 'humid', 'rh', 'ความชื้น']
+  };
+
+  function normaliseRows(rows) {
+    if (!rows || !rows.length) return rows;
+
+    const sample = rows[0];
+    const keyMap = {};
+
+    Object.keys(sample).forEach(origKey => {
+      const trimmed = origKey.trim();
+      const lc      = trimmed.toLowerCase();
+
+      if (COL_MAP[trimmed]) {
+        keyMap[origKey] = trimmed;
+        return;
+      }
+
+      let matched = false;
+      for (const [canonical, aliases] of Object.entries(COL_MAP)) {
+        if (aliases.includes(lc)) {
+          keyMap[origKey] = canonical;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) keyMap[origKey] = trimmed;
+    });
+
+    return rows.map(row => {
+      const out = {};
+      Object.entries(row).forEach(([k, v]) => {
+        out[keyMap[k] || k] = v;
+      });
+      return out;
+    });
+  }
+
+  /* ===================================================
+     AUTO-REFRESH / CHART DEFAULTS
+  =================================================== */
+  const REFRESH_SECS = 300;
+  let countdown  = REFRESH_SECS;
+  let isLoading  = false;   // หยุด countdown ระหว่างโหลด
+
+  Chart.defaults.color       = '#64748b';
+  Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
+  Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+  const charts = {};
+
+  function makeChart(id, datasets, yLabel) {
+    const ctx = document.getElementById(id).getContext('2d');
+    return new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              boxWidth: 8,
+              padding: 16,
+              font: { size: 11 },
+              usePointStyle: true,
+              pointStyle: 'circle',
+              generateLabels(chart) {
+                const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                base.forEach(l => { l.text = '  ' + l.text; });
+                return base;
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            borderColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              maxTicksLimit: 5,
+              maxRotation: 0,
+              autoSkip: true,
+              font: { size: 10 },
+              color: '#94a3b8'
+            },
+            border: { display: false }
+          },
+          y: {
+            grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+            title: { display: !!yLabel, text: yLabel, font: { size: 10 }, color: '#94a3b8' },
+            ticks: { font: { size: 10 }, color: '#94a3b8', padding: 6 },
+            border: { display: false, dash: [4, 4] }
+          }
+        },
+        elements: {
+          line:  { tension: 0.4, borderWidth: 2.5 },
+          point: { radius: 0, hitRadius: 16, hoverRadius: 4, hoverBorderWidth: 2 }
+        }
+      }
+    });
+  }
+
+  function initCharts() {
+    charts.pm25 = makeChart('chartPm25', [{
+      label: 'PM2.5 (µg/m³)',
+      borderColor: '#0284c7',
+      backgroundColor: (ctx) => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, 'rgba(2,132,199,0.15)');
+        g.addColorStop(1, 'rgba(2,132,199,0)');
+        return g;
+      },
+      fill: true,
+      data: []
+    }], 'µg/m³');
+
+    charts.pm10 = makeChart('chartPm10', [{
+      label: 'PM10 (µg/m³)',
+      borderColor: '#7c3aed',
+      backgroundColor: (ctx) => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, 'rgba(124,58,237,0.15)');
+        g.addColorStop(1, 'rgba(124,58,237,0)');
+        return g;
+      },
+      fill: true,
+      data: []
+    }], 'µg/m³');
+
+    const ctxTH = document.getElementById('chartTempHum').getContext('2d');
+    charts.tempHum = new Chart(ctxTH, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Temperature (°C)',
+            borderColor: '#ea580c',
+            backgroundColor: 'transparent',
+            fill: false,
+            data: [],
+            yAxisID: 'yTemp',
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHitRadius: 16,
+            pointHoverRadius: 4
+          },
+          {
+            label: 'Humidity (%)',
+            borderColor: '#16a34a',
+            backgroundColor: 'transparent',
+            fill: false,
+            data: [],
+            yAxisID: 'yHum',
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHitRadius: 16,
+            pointHoverRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              boxWidth: 8,
+              padding: 16,
+              font: { size: 11 },
+              usePointStyle: true,
+              pointStyle: 'circle',
+              generateLabels(chart) {
+                const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                base.forEach(l => { l.text = '  ' + l.text; });
+                return base;
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            borderColor: 'rgba(0,0,0,0.1)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              maxTicksLimit: 5,
+              maxRotation: 0,
+              autoSkip: true,
+              font: { size: 10 },
+              color: '#94a3b8'
+            },
+            border: { display: false }
+          },
+          yTemp: {
+            type: 'linear',
+            position: 'left',
+            grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+            title: { display: true, text: '°C', color: '#ea580c', font: { size: 10 } },
+            ticks: { color: '#ea580c', font: { size: 10 }, padding: 6 },
+            border: { display: false }
+          },
+          yHum: {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: '%', color: '#16a34a', font: { size: 10 } },
+            ticks: { color: '#16a34a', font: { size: 10 }, padding: 6 },
+            border: { display: false },
+            min: 0,
+            max: 100
+          }
+        }
+      }
+    });
+  }
+
+  /* ===================================================
+     UPDATE CHARTS WITH DATA
+  =================================================== */
+  function updateCharts(rows) {
+    const slice = rows.slice(-30);
+
+    const labels   = [];
+    const pm25Data = [];
+    const pm10Data = [];
+    const tempData = [];
+    const humData  = [];
+
+    for (let i = 0; i < slice.length; i++) {
+      const r = slice[i];
+      const d = new Date(r.Timestamp);
+
+      if (!isNaN(d)) {
+        const day   = d.getDate();
+        const month = d.getMonth() + 1;
+        const hour  = String(d.getHours()).padStart(2, '0');
+        const mins  = String(d.getMinutes()).padStart(2, '0');
+        labels.push(`${day}/${month} ${hour}:${mins}`);
+      } else {
+        labels.push(r.Timestamp || '');
+      }
+
+      pm25Data.push(+r['PM2.5']             || 0);
+      pm10Data.push(+r['PM10']              || 0);
+      tempData.push(parseFloat(r['Temperature']) || 0);
+      humData.push(parseFloat(r['Humidity'])    || 0);
+    }
+
+    charts.pm25.data.labels              = labels;
+    charts.pm25.data.datasets[0].data    = pm25Data;
+    charts.pm25.update('none');
+
+    charts.pm10.data.labels              = labels;
+    charts.pm10.data.datasets[0].data    = pm10Data;
+    charts.pm10.update('none');
+
+    charts.tempHum.data.labels           = labels;
+    charts.tempHum.data.datasets[0].data = tempData;
+    charts.tempHum.data.datasets[1].data = humData;
+    charts.tempHum.update('none');
+  }
+
+  /* ===================================================
+     GAUGE METER
+  =================================================== */
+  const GAUGE_LEN = Math.PI * 85;
+
+  function initGauge() {
+    const fill = document.getElementById('gaugeFill');
+    fill.style.strokeDasharray  = GAUGE_LEN;
+    fill.style.strokeDashoffset = GAUGE_LEN;
+
+    const fill10 = document.getElementById('gaugeFill10');
+    fill10.style.strokeDasharray  = GAUGE_LEN;
+    fill10.style.strokeDashoffset = GAUGE_LEN;
+  }
+
+  function updateGauge(value) {
+    const maxVal = 150;
+    const pct  = Math.min(Math.max(value, 0) / maxVal, 1);
+    const fill = document.getElementById('gaugeFill');
+    fill.style.strokeDashoffset = GAUGE_LEN * (1 - pct);
+    const gn = document.getElementById('gaugeNum');
+    gn.classList.remove('pop'); void gn.offsetWidth;
+    gn.classList.add('pop');
+    gn.textContent = value.toFixed(1);
+  }
+
+  function updateGauge10(value) {
+    const maxVal = 300;
+    const pct  = Math.min(Math.max(value, 0) / maxVal, 1);
+    const fill = document.getElementById('gaugeFill10');
+    fill.style.strokeDashoffset = GAUGE_LEN * (1 - pct);
+    const gn10 = document.getElementById('gaugeNum10');
+    gn10.classList.remove('pop'); void gn10.offsetWidth;
+    gn10.classList.add('pop');
+    gn10.textContent = value.toFixed(1);
+  }
+
+  /* ===================================================
+     AIR QUALITY STATUS & DASHBOARD RENDER
+  =================================================== */
+  function getAQStatus(pm25) {
+    if (pm25 <=  50) return { cls: 'status-good',      label: '🟢 Good',      color: '#78be21' };
+    if (pm25 <= 100) return { cls: 'status-moderate',  label: '🟡 Moderate',  color: '#f5c400' };
+    if (pm25 <= 150) return { cls: 'status-unhealthy', label: '🟠 Unhealthy for Sensitive Groups', color: '#f07d00' };
+    return                  { cls: 'status-hazardous', label: '🔴 Unhealthy', color: '#dc2626' };
+  }
+
+  function renderDashboard(rows) {
+    if (!rows || rows.length === 0) {
+      showToast('⚠️ ไม่พบข้อมูลใน Spreadsheet');
+      return;
+    }
+
+    allData = rows;
+    _dataCacheSource = null;  // invalidate date filter cache
+    const n    = rows.length;
+    const last = rows[n - 1];
+    const prev = n > 1 ? rows[n - 2] : null;
+
+    const pm25 = parseFloat(last['PM2.5'])       || 0;
+    const pm10 = parseFloat(last['PM10'])        || 0;
+    const temp = parseFloat(last['Temperature']) || 0;
+    const hum  = parseFloat(last['Humidity'])    || 0;
+
+    // Current reading cards
+    // Remove skeleton
+    ['val-pm25','val-pm10','val-temp','val-hum'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('skeleton');
+    });
+    setText('val-pm25', pm25.toFixed(1), true);
+    setText('val-pm10', pm10.toFixed(1), true);
+    setText('val-temp', temp.toFixed(1), true);
+    setText('val-hum',  hum.toFixed(1), true);
+
+    setDelta('delta-pm25', pm25, prev ? +prev['PM2.5']       : null, 'µg/m³');
+    setDelta('delta-pm10', pm10, prev ? +prev['PM10']        : null, 'µg/m³');
+    setDelta('delta-temp', temp, prev ? +prev['Temperature'] : null, '°C');
+    setDelta('delta-hum',  hum,  prev ? +prev['Humidity']    : null, '%');
+
+    // AQ badge
+    const status = getAQStatus(pm25);
+    const badge  = document.getElementById('aqBadge');
+    badge.className = 'aq-status-badge ' + status.cls;
+    document.getElementById('aqDot').style.background = status.color;
+    document.getElementById('aqText').textContent =
+      status.label + '  —  PM2.5 ' + pm25.toFixed(1) + ' µg/m³';
+
+    updateGauge(pm25);
+    updateGauge10(pm10);
+    updateCharts(rows);
+
+    // Analytics: single pass (was 2 separate loops before)
+    let pm25Sum = 0, pm25Min = Infinity, pm25Max = -Infinity;
+    let tempSum = 0, humSum  = 0;
+
+    for (let i = 0; i < n; i++) {
+      const r   = rows[i];
+      const v25 = parseFloat(r['PM2.5'])       || 0;
+      const vT  = parseFloat(r['Temperature']) || 0;
+      const vH  = parseFloat(r['Humidity'])    || 0;
+      pm25Sum += v25;
+      tempSum += vT;
+      humSum  += vH;
+      if (v25 < pm25Min) pm25Min = v25;
+      if (v25 > pm25Max) pm25Max = v25;
+    }
+
+    setText('stat-avgPm25', (pm25Sum / n).toFixed(1), true);
+    setText('stat-maxPm25', pm25Max.toFixed(1),         true);
+    setText('stat-minPm25', pm25Min.toFixed(1),         true);
+    setText('stat-avgTemp', (tempSum / n).toFixed(1),   true);
+    setText('stat-avgHum',  (humSum  / n).toFixed(1),   true);
+    setText('stat-total',   n,                          true);
+
+    // Reverse once, reuse (was [...rows].reverse() which creates a copy)
+    renderTable(rows.slice().reverse());
+
+    // Batch DOM writes — system status
+    const now = new Date().toLocaleTimeString('th-TH');
+    setText('sysLastUpdate', now);
+    setText('sysConn',       'Connected ✓');
+    setText('sysTotalRec',   n + ' rows');
+    setText('headerStatus',  'Live');
+
+    document.getElementById('sysDot').className = 'sys-dot live';
+    const hd = document.getElementById('headerDot');
+    hd.style.background = 'var(--good)';
+    hd.style.boxShadow  = '0 0 7px var(--good)';
+    hd.classList.add('live-glow');
+
+    resetCountdown();
+  }
+
+  /* ===================================================
+     TABLE & FILTERING
+  =================================================== */
+  // Cache: pre-parsed ISO date strings per row (rebuilt when allData changes)
+  let _dateCache = null;
+  let _dataCacheSource = null;
+
+  function getDateCache() {
+    if (_dataCacheSource === allData) return _dateCache;
+    _dataCacheSource = allData;
+    _dateCache = allData.map(r => {
+      const d = new Date(r['Timestamp'] || '');
+      return isNaN(d) ? null : d.toISOString().slice(0, 10);
+    });
+    return _dateCache;
+  }
+
+  function filterByDate() {
+    const val = document.getElementById('dateFilter').value;
+    if (!val) {
+      renderTable(allData.slice().reverse());
+      setText('filterCount', '');
+      return;
+    }
+
+    const cache    = getDateCache();
+    const filtered = allData.filter((_, i) => cache[i] === val);
+
+    renderTable(filtered.slice().reverse());
+
+    const count = filtered.length;
+    const label = document.getElementById('filterCount');
+    label.textContent = count > 0 ? `${count} records` : 'ไม่พบข้อมูลวันนี้';
+    label.style.color = count > 0 ? 'var(--good)' : 'var(--hazardous)';
+  }
+
+  function clearDateFilter() {
+    document.getElementById('dateFilter').value = '';
+    renderTable(allData.slice().reverse());
+    setText('filterCount', '');
+  }
+
+  function renderTable(rows) {
+    const tbody = document.getElementById('tableBody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="loading-overlay">No records</div></td></tr>';
+      return;
+    }
+    // Use push+join instead of map for large datasets (avoids closure per row)
+    const parts = [];
+    for (let i = 0, len = rows.length; i < len; i++) {
+      const r = rows[i];
+      parts.push(
+        '<tr><td class="ts">'   + fmtTs(r['Timestamp'] || '') +
+        '</td><td class="pm25v">' + ((parseFloat(r['PM2.5'])      || 0).toFixed(1)) +
+        '</td><td class="pm10v">' + ((parseFloat(r['PM10'])        || 0).toFixed(1)) +
+        '</td><td class="tempv">' + ((parseFloat(r['Temperature']) || 0).toFixed(1)) +
+        '</td><td class="humv">'  + ((parseFloat(r['Humidity'])    || 0).toFixed(1)) +
+        '</td></tr>'
+      );
+    }
+    tbody.innerHTML = parts.join('');
+    // Stagger animation: cap at 20 rows to avoid perf hit
+    const rows2 = tbody.querySelectorAll('tr');
+    const cap = Math.min(rows2.length, 20);
+    for (let i = 0; i < cap; i++) {
+      rows2[i].style.animationDelay = (i * 18) + 'ms';
+    }
+  }
+
+  function sortTable(col) {
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+
+    const keys = ['Timestamp', 'PM2.5', 'PM10', 'Temperature', 'Humidity'];
+    const key  = keys[col];
+    const sorted = [...allData].sort((a, b) => {
+      const av = col === 0 ? a[key] : +a[key];
+      const bv = col === 0 ? b[key] : +b[key];
+      return (av > bv ? 1 : av < bv ? -1 : 0) * (sortAsc ? 1 : -1);
+    });
+    renderTable(sorted);
+  }
+
+  /* ===================================================
+     SPLASH & TOP BAR
+  =================================================== */
+  function splashProgress(pct, msg) {
+    document.getElementById('splashBar').style.width    = pct + '%';
+    document.getElementById('splashStatus').textContent = msg;
+  }
+
+  function splashHide() {
+    splashProgress(100, 'พร้อมใช้งาน ✓');
+    setTimeout(() => {
+      document.getElementById('splash').classList.add('hide');
+    }, 400);
+  }
+
+  function topBarStart() {
+    const b = document.getElementById('topBar');
+    b.style.transition = 'width .3s ease, opacity .1s ease';
+    b.style.opacity    = '1';
+    b.style.width      = '70%';
+    b.classList.add('running');
+  }
+
+  function topBarDone() {
+    const b = document.getElementById('topBar');
+    b.classList.remove('running');
+    b.style.transition = 'width .25s ease, opacity .5s ease .3s';
+    b.style.width      = '100%';
+    setTimeout(() => { b.style.opacity = '0'; b.style.width = '0%'; }, 500);
+  }
+
+  function topBarError() {
+    const b = document.getElementById('topBar');
+    b.classList.remove('running');
+    b.style.background = '#dc2626';
+    b.style.width      = '100%';
+    setTimeout(() => {
+      b.style.opacity    = '0';
+      b.style.width      = '0%';
+      b.style.background = 'linear-gradient(90deg,#0284c7,#7c3aed,#0284c7)';
+      b.style.backgroundSize = '200% 100%';
+    }, 600);
+  }
+
+  /* ===================================================
+     DATA LOADING (JSONP)
+  =================================================== */
+  function loadData() {
+    const url = document.getElementById('sheetsUrl').value.trim();
+    if (!url) {
+      showToast('⚠️ กรุณากรอก URL ก่อน');
+      return;
+    }
+
+    isLoading = true;
+    showToast('⏳ กำลังโหลดข้อมูล…');
+    setText('sysConn', 'Loading…');
+    topBarStart();
+    // Skeleton state on cards
+    ['val-pm25','val-pm10','val-temp','val-hum'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('skeleton');
+    });
+
+    jsonpLoad(url);
+  }
+
+  function jsonpLoad(url) {
+    const old = document.getElementById('__aqmScript');
+    if (old) old.remove();
+
+    const cbName = '__aqmCb';
+    const sep    = url.includes('?') ? '&' : '?';
+    const fullUrl = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
+
+    const timer = setTimeout(() => {
+      const s = document.getElementById('__aqmScript');
+      if (s) s.remove();
+      topBarError();
+      showToast('❌ Timeout — ตรวจสอบ:\n1. URL ถูกต้อง\n2. Deploy เป็น "Anyone"\n3. Script มีฟังก์ชัน doGet');
+      setText('sysConn', 'Timeout ✗');
+      document.getElementById('sysDot').className = 'sys-dot err';
+    }, 15000);
+
+    global[cbName] = function(json) {
+      clearTimeout(timer);
+      delete global[cbName];
+      const s = document.getElementById('__aqmScript');
+      if (s) s.remove();
+
+      try {
+        const raw  = Array.isArray(json) ? json : (json.data || json.values || []);
+        const rows = normaliseRows(raw);
+        console.log('[AQM] Loaded', rows.length, 'rows | Columns:', rows.length ? Object.keys(rows[0]) : []);
+        isLoading = false;
+        renderDashboard(rows);
+        topBarDone();
+        splashHide();
+        showToast('✅ โหลดสำเร็จ — ' + rows.length + ' แถว');
+      } catch (err) {
+        console.error('[AQM] Parse error:', err);
+        topBarError();
+        splashProgress(100, '❌ โหลดไม่สำเร็จ');
+        setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
+        isLoading = false;
+        showToast('❌ Parse ข้อมูลผิดพลาด: ' + err.message);
+        setText('sysConn', 'Error ✗');
+        document.getElementById('sysDot').className = 'sys-dot err';
+      }
+    };
+
+    const script   = document.createElement('script');
+    script.id      = '__aqmScript';
+    script.src     = fullUrl;
+    script.onerror = function() {
+      clearTimeout(timer);
+      delete global[cbName];
+      topBarError();
+      splashProgress(100, '❌ เชื่อมต่อไม่สำเร็จ');
+      setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
+      isLoading = false;
+      showToast('❌ โหลดสคริปต์ไม่ได้ — ตรวจสอบ URL และ Deploy permissions');
+      setText('sysConn', 'Error ✗');
+      document.getElementById('sysDot').className = 'sys-dot err';
+    };
+    document.head.appendChild(script);
+  }
+
+  /* ===================================================
+     EXPORT / CSV
+  =================================================== */
+  function exportPDF() {
+    if (!allData.length) {
+      showToast('⚠️ ยังไม่มีข้อมูล — กด Refresh ก่อน');
+      return;
+    }
+
+    const now = new Date().toLocaleString('th-TH', { dateStyle:'long', timeStyle:'short' });
+
+    const esc = v => String(v ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    const fmtForPdf = ts => {
+      const d = new Date(ts);
+      if (isNaN(d)) return esc(ts);
+      return d.toLocaleString('th-TH', {
+        year:'numeric',
+        month:'2-digit',
+        day:'2-digit',
+        hour:'2-digit',
+        minute:'2-digit',
+        second:'2-digit',
+        hour12: false
+      });
+    };
+
+    const rows = [...allData].reverse();
+    const rowsHtml = rows.map(r => `
+      <tr>
+        <td>${fmtForPdf(r['Timestamp'])}</td>
+        <td>${(+r['PM2.5'] || 0).toFixed(1)}</td>
+        <td>${(+r['PM10']  || 0).toFixed(1)}</td>
+        <td>${(parseFloat(r['Temperature']) || 0).toFixed(1)}</td>
+        <td>${(parseFloat(r['Humidity'])    || 0).toFixed(1)}</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Historical Data — Air Quality</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: #fff; color: #0f172a; padding: 32px 40px; font-size: 11pt; }
+    .report-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #0284c7; }
+    .logo { width: 46px; height: 46px; background: linear-gradient(135deg,#0284c7,#7c3aed); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .report-header h1 { font-size: 16pt; font-weight: 700; }
+    .report-header p  { font-size: 9pt; color: #64748b; margin-top: 2px; }
+    .meta { display: flex; gap: 24px; margin-bottom: 18px; font-size: 9pt; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    thead tr { background: #0284c7; color: #fff; }
+    thead th { padding: 9px 12px; text-align: left; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; }
+    thead th:not(:first-child) { text-align: right; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody td { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+    tbody td:first-child { color: #64748b; font-size: 9pt; }
+    tbody td:not(:first-child) { font-weight: 600; text-align: right; }
+    .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; display: flex; justify-content: space-between; }
+    @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { padding: 20px 28px; } }
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <div class="logo" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="22" fill="url(#grad3)"/>
+  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+</svg></div>
+    <div><h1>Historical Data Report</h1><p>Air Quality Monitoring System</p></div>
+  </div>
+  <div class="meta">
+    <span>📅 Export: ${now}</span>
+    <span>📊 Total: ${rows.length} records</span>
+  </div>
+  <table>
+    <thead><tr><th>Timestamp</th><th>PM2.5 (µg/m³)</th><th>PM10 (µg/m³)</th><th>Temp (°C)</th><th>Humidity (%)</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="footer"><span>Air Quality Monitoring Dashboard</span><span>${now}</span></div>
+  <script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const win  = window.open(url, '_blank');
+    if (win) {
+      win.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+    } else {
+      showToast('⚠️ กรุณาอนุญาต Pop-up ใน browser ก่อนครับ');
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function downloadCSV() {
+    if (!allData.length) {
+      showToast('⚠️ ยังไม่มีข้อมูล — กด Load Data ก่อน');
+      return;
+    }
+
+    const headers = ['Timestamp', 'PM2.5', 'PM10', 'Temperature', 'Humidity'];
+    const lines   = [
+      headers.join(','),
+      ...allData.map(r =>
+        headers.map(h => `"${(r[h] !== undefined ? r[h] : '')}"`).join(',')
+      )
+    ];
+
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href     = URL.createObjectURL(blob);
+    link.download = 'air_quality_' + new Date().toISOString().slice(0, 10) + '.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+    showToast('💾 ดาวน์โหลด CSV สำเร็จ (' + allData.length + ' rows)');
+  }
+
+  /* ===================================================
+     AUTO-REFRESH TICK
+  =================================================== */
+  function resetCountdown() {
+    countdown = REFRESH_SECS;
+  }
+
+  setInterval(() => {
+    // หยุดนับระหว่างโหลดข้อมูล — เริ่มนับต่อเมื่อข้อมูลมาแล้ว
+    if (isLoading) return;
+
+    countdown = Math.max(0, countdown - 1);
+
+    if (countdown === 0) {
+      countdown = REFRESH_SECS;
+      if (document.getElementById('sheetsUrl').value.trim()) {
+        loadData();
+      }
+    }
+
+    const pct  = (countdown / REFRESH_SECS) * 100;
+    const mins = Math.floor(countdown / 60);
+    const secs = String(countdown % 60).padStart(2, '0');
+
+    document.getElementById('refreshFill').style.width    = pct + '%';
+    document.getElementById('countdownText').textContent  = `${mins}:${secs}`;
+  }, 1000);
+
+  /* ===================================================
+     HELPERS
+  =================================================== */
+  function setText(id, val, animate = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (animate && el.textContent !== String(val)) {
+      el.classList.remove('updating', 'pop');
+      void el.offsetWidth; // force reflow
+      el.classList.add(el.classList.contains('card-value') ? 'updating' :
+                       el.classList.contains('analytics-value') || el.classList.contains('gauge-number') ? 'pop' : '');
+      el.textContent = val;
+      el.addEventListener('animationend', () => el.classList.remove('updating','pop'), { once: true });
+    } else {
+      el.textContent = val;
+    }
+  }
+
+  function setDelta(id, cur, prev, unit) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (prev === null || isNaN(prev)) {
+      el.textContent = 'Latest reading';
+      el.style.color = '';
+      return;
+    }
+    const diff = cur - prev;
+    const sign = diff > 0 ? '+' : '';
+    el.textContent = `${sign}${diff.toFixed(1)} ${unit} vs prev`;
+    el.style.color = diff > 0 ? 'var(--hazardous)' : diff < 0 ? 'var(--good)' : 'var(--muted)';
+  }
+
+  function fmtTs(ts, short = false) {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return String(ts);
+    if (short) return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3800);
+  }
+
+  /* ===================================================
+     STARTUP & SETTINGS
+  =================================================== */
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQVa8DL21CDDQTb4ffwNd8UQSwQXItb23IMkQjTQRzaFr73s_Vd2z28IJrZ5tJeRttCg/exec';
+
+  function bootstrap() {
+    initCharts();
+    initGauge();
+
+    splashProgress(30, 'เริ่มต้นระบบ…');
+    document.getElementById('sheetsUrl').value = SCRIPT_URL;
+
+    setTimeout(() => splashProgress(60, 'กำลังโหลดข้อมูล…'), 300);
+    loadData();
+
+    let logoClickCount = 0;
+    let logoClickTimer = null;
+
+    document.getElementById('logoTrigger').addEventListener('click', function() {
+      logoClickCount++;
+      clearTimeout(logoClickTimer);
+      logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 600);
+
+      if (logoClickCount >= 3) {
+        logoClickCount = 0;
+        const panel = document.getElementById('settingsPanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+  }
+
+  function closeSettings() {
+    document.getElementById('settingsPanel').style.display = 'none';
+  }
+
+  function saveAndLoad() {
+    const url = document.getElementById('sheetsUrl').value.trim();
+    if (!url) {
+      showToast('⚠️ กรุณากรอก URL');
+      return;
+    }
+    closeSettings();
+    loadData();
+    showToast('✅ บันทึก URL และโหลดข้อมูลแล้ว');
+  }
+
+  // Public API exposed for HTML event handlers
+  global.AirQualityDashboard = {
+    bootstrap,
+    loadData,
+    exportPDF,
+    downloadCSV,
+    filterByDate,
+    clearDateFilter,
+    saveAndLoad,
+    closeSettings,
+    sortTable
+  };
+
+  // Maintain backward compatibility with existing inline handlers (if any)
+  global.loadData      = loadData;
+  global.exportPDF     = exportPDF;
+  global.downloadCSV   = downloadCSV;
+  global.filterByDate  = filterByDate;
+  global.clearDateFilter = clearDateFilter;
+  global.saveAndLoad   = saveAndLoad;
+  global.closeSettings = closeSettings;
+  global.sortTable     = sortTable;
+
+  // Kick off app once DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
+})(window);
+
+</script>
+</body>
+</html>
