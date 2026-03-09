@@ -545,8 +545,9 @@
       overflow-y: auto;
       max-height: 300px;
       border-radius: 10px;
-      -webkit-overflow-scrolling: touch; /* iOS smooth scroll */
+      -webkit-overflow-scrolling: touch;
     }
+    .table-scroll table { min-width: 480px; }
 
     table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 
@@ -607,8 +608,8 @@
       gap: 8px;
     }
 
-    .sys-label { font-size: 0.7rem; color: var(--muted); display: flex; align-items: center; gap: 7px; }
-    .sys-val   { font-family: var(--font-mono); font-size: 0.73rem; color: var(--text); font-weight: 600; text-align: right; }
+    .sys-label { font-size: 0.7rem; color: var(--muted); display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    .sys-val   { font-family: var(--font-mono); font-size: 0.73rem; color: var(--text); font-weight: 600; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .sys-dot {
       width: 8px; height: 8px;
@@ -709,16 +710,17 @@
 
       .header-left { gap: 12px; }
 
-      /* ปุ่มแถวล่าง: grid 2x2 */
+      /* pill แสดงใน header-left ซ่อนเฉพาะบนมือถือเล็กมาก */
+      .pill { font-size: 0.68rem; padding: 4px 10px; }
+
+      /* ปุ่ม 4 ตัว grid 2x2 */
       .header-right {
         width: 100%;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto;
         gap: 6px;
       }
-      .header-right .pill { display: none; }
-      .header-right .btn  {
+      .header-right .btn {
         padding: 10px 8px;
         font-size: 0.78rem;
         justify-content: center;
@@ -726,9 +728,7 @@
         min-width: 0;
         gap: 5px;
       }
-      /* Export PDF ยาวเต็มแถว */
       .header-right .btn-pdf { grid-column: 1 / -1; }
-      /* CSV สีน้ำเงิน */
       .header-right .btn-csv { color: var(--accent); border-color: var(--accent); }
 
       .header-title h1 { font-size: 1.05rem; }
@@ -1255,12 +1255,12 @@
         <h1>Air Quality Monitoring Dashboard</h1>
         <p>Real-time Environmental Monitoring System</p>
       </div>
-    </div>
-    <div class="header-right">
       <div class="pill">
         <span class="dot" id="headerDot"></span>
         <span id="headerStatus">Offline</span>
       </div>
+    </div>
+    <div class="header-right">
       <button class="btn btn-outline btn-qr" onclick="openQR()" title="QR Code">
         <svg width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
