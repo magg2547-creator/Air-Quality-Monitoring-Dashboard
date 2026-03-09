@@ -2,18 +2,21 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <meta name="theme-color" content="#0284c7"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="Air Quality"/>
   <title>Air Quality Monitoring Dashboard</title>
+  <meta name="description" content="Dashboard for monitoring PM2.5, PM10, temperature, and humidity with real-time charts, analytics, and historical data."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin/>
 
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <!-- Chart.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <!-- QRCode -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
@@ -55,11 +58,11 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      min-height: 100dvh; /* dynamic viewport สำหรับ mobile browser */
+      min-height: 100dvh; /* dynamic viewport for mobile browsers */
       background-image:
         radial-gradient(ellipse 80% 60% at 50% -10%, rgba(2,132,199,0.07) 0%, transparent 60%),
         radial-gradient(ellipse 60% 40% at 80% 100%, rgba(124,58,237,0.05) 0%, transparent 60%);
-      /* safe-area สำหรับ iPhone notch */
+      /* safe-area support for iPhone notch */
       padding-left:  env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
       padding-bottom: env(safe-area-inset-bottom);
@@ -79,6 +82,39 @@
       max-width: 1440px;
       margin: 0 auto;
       padding: 0 24px 48px;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      transform: translateY(-160%);
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 0.82rem;
+      text-decoration: none;
+      z-index: 100001;
+      transition: transform .18s ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 3px solid rgba(14, 165, 233, 0.35);
+      outline-offset: 3px;
     }
 
     /* ===========================
@@ -130,6 +166,44 @@
       flex-wrap: wrap;
     }
 
+    .header-meta-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: -8px 0 24px;
+    }
+
+    .meta-chip {
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+      backdrop-filter: blur(8px);
+      min-width: 0;
+    }
+
+    .meta-chip-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .meta-chip-value {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* Pill badge */
     .pill {
       display: inline-flex;
@@ -160,35 +234,35 @@
     .btn {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      padding: 8px 20px;
-      border-radius: 99px;
+      padding: 9px 16px;
+      border-radius: 10px;
       font-family: var(--font-body);
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
+      line-height: 1.2;
       cursor: pointer;
-      border: none;
-      transition: all .2s;
+      border: 1px solid transparent;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.78);
+      transition: all .18s ease;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent), #0369a1);
+      background: linear-gradient(180deg, #0ea5e9, #0284c7);
       color: #fff;
-      box-shadow: 0 2px 10px rgba(2,132,199,0.3);
+      border-color: rgba(2,132,199,0.28);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 2px rgba(2,132,199,0.18);
     }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(2,132,199,0.4); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 4px 12px rgba(2,132,199,0.18); }
 
     .btn-outline {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
     }
-    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
-
-
-    /* ===========================
-       CONFIG PANEL (Google Sheets)
-    =========================== */
+    .btn-outline:hover { border-color: #94a3b8; color: #0f172a; background: #f8fafc; }
     .config-panel {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -260,10 +334,18 @@
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--muted);
-      margin-bottom: 14px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       gap: 10px;
+      line-height: 1;
+    }
+
+    .status-panel > .section-title,
+    .gauge-panel > .section-title,
+    .system-card > .section-title {
+      margin-bottom: 2px;
+      width: 100%;
     }
     .section-title::after {
       content: '';
@@ -286,7 +368,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 22px 20px 16px;
+      padding: 20px 20px 16px;
       position: relative;
       overflow: hidden;
       transition: transform .25s, box-shadow .25s;
@@ -367,50 +449,111 @@
 
     /* Air Quality Status Panel */
     .status-panel {
-      background: var(--surface);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 22px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
       gap: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .status-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(120,190,33,0.22), rgba(245,196,0,0.18), rgba(220,38,38,0.2));
+      opacity: 0.8;
     }
 
     .aq-status-badge {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      padding: 11px 20px;
-      border-radius: 99px;
-      font-size: 0.95rem;
+      gap: 12px;
+      width: 100%;
+      min-height: 54px;
+      padding: 13px 18px;
+      border-radius: 18px;
+      font-size: 1rem;
       font-weight: 700;
-      transition: all .5s;
+      letter-spacing: -0.01em;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.62), 0 10px 24px rgba(15,23,42,0.06);
+      transition: all .35s ease;
     }
-    .aq-status-badge .badge-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    .status-good        { background: rgba(120,190,33,.12);  color: #5a9a0a; border: 1px solid rgba(120,190,33,.35); }
-    .status-moderate    { background: rgba(245,196,0,.12);   color: #b8920a; border: 1px solid rgba(245,196,0,.35);  }
-    .status-unhealthy   { background: rgba(240,125,0,.12);   color: #c05c00; border: 1px solid rgba(240,125,0,.35);  }
-    .status-hazardous   { background: rgba(220,38,38,.12);   color: #b91c1c; border: 1px solid rgba(220,38,38,.35);  }
-    .status-vunhealthy  { background: rgba(139,63,168,.12);  color: #6b2d8b; border: 1px solid rgba(139,63,168,.35); }
-    .status-maroon      { background: rgba(125,0,35,.12);    color: #7d0023; border: 1px solid rgba(125,0,35,.35);   }
+    .aq-status-badge .badge-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 5px rgba(255,255,255,0.58);
+    }
 
-    .status-scale { display: flex; gap: 3px; }
-    .scale-item { flex: 1; height: 6px; border-radius: 3px; }
-    .scale-item:nth-child(1) { background: #78be21; }
-    .scale-item:nth-child(2) { background: #f5c400; }
-    .scale-item:nth-child(3) { background: #f07d00; }
-    .scale-item:nth-child(4) { background: #dc2626; }
+    .status-good        { background: linear-gradient(180deg, rgba(120,190,33,.14), rgba(120,190,33,.1));  color: #4f8d0b; border: 1px solid rgba(120,190,33,.28); }
+    .status-moderate    { background: linear-gradient(180deg, rgba(245,196,0,.16), rgba(245,196,0,.1));   color: #a88200; border: 1px solid rgba(245,196,0,.3); }
+    .status-unhealthy   { background: linear-gradient(180deg, rgba(240,125,0,.16), rgba(240,125,0,.1));   color: #b95a00; border: 1px solid rgba(240,125,0,.3); }
+    .status-hazardous   { background: linear-gradient(180deg, rgba(220,38,38,.16), rgba(220,38,38,.1));   color: #b91c1c; border: 1px solid rgba(220,38,38,.3); }
+    .status-vunhealthy  { background: linear-gradient(180deg, rgba(139,63,168,.16), rgba(139,63,168,.1));  color: #6b2d8b; border: 1px solid rgba(139,63,168,.3); }
+    .status-maroon      { background: linear-gradient(180deg, rgba(125,0,35,.16), rgba(125,0,35,.1));    color: #7d0023; border: 1px solid rgba(125,0,35,.3); }
+
+    .status-scale-wrap {
+      padding: 12px 12px 10px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(241,245,249,0.96));
+      border: 1px solid rgba(148,163,184,0.14);
+    }
+
+    .status-scale {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+      align-items: center;
+    }
+
+    .scale-item {
+      height: 7px;
+      border-radius: 999px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    .scale-item:nth-child(1) { background: linear-gradient(90deg, #78be21, #84cc16); }
+    .scale-item:nth-child(2) { background: linear-gradient(90deg, #f5c400, #facc15); }
+    .scale-item:nth-child(3) { background: linear-gradient(90deg, #f07d00, #fb923c); }
+    .scale-item:nth-child(4) { background: linear-gradient(90deg, #dc2626, #ef4444); }
     .scale-item:nth-child(5) { background: #8b3fa8; }
     .scale-item:nth-child(6) { background: #7d0023; }
 
     .scale-labels {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 5px;
-      font-size: 0.6rem;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 0.64rem;
       color: var(--muted);
       font-family: var(--font-mono);
+    }
+
+    .scale-labels span {
+      display: block;
+      line-height: 1.45;
+      white-space: nowrap;
+    }
+    .scale-labels span:nth-child(2),
+    .scale-labels span:nth-child(3) { text-align: center; }
+    .scale-labels span:nth-child(4) { text-align: right; }
+
+    @media (max-width: 640px) {
+      .aq-status-badge {
+        font-size: 0.9rem;
+        padding: 12px 14px;
+      }
+
+      .scale-labels {
+        font-size: 0.58rem;
+        gap: 6px;
+      }
     }
 
     /* Gauge Panel */
@@ -418,10 +561,11 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 22px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 14px;
     }
 
     .gauge-wrap { position: relative; width: 200px; height: 110px; }
@@ -465,19 +609,20 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 20px 18px 14px;
+      padding: 20px 20px 16px;
     }
 
     .chart-card-title {
-      font-size: 0.72rem;
+      font-size: 0.69rem;
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--muted);
-      margin-bottom: 14px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 8px;
+      line-height: 1;
     }
     .chart-card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
     .chart-container { position: relative; height: 190px; }
@@ -496,7 +641,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 18px;
+      padding: 18px 16px;
       text-align: center;
       transition: transform .2s;
     }
@@ -529,25 +674,60 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 20px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .table-scroll {
+      max-height: 640px;
+      overflow: auto;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.94));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+    }
+
+    .table-scroll table {
+      min-width: 100%;
     }
 
     .table-header-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 12px;
     }
 
-    .table-scroll {
-      overflow-x: auto;
-      overflow-y: auto;
-      max-height: 300px;
-      border-radius: 10px;
-      -webkit-overflow-scrolling: touch;
+    .table-toolbar-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
     }
-    .table-scroll table { min-width: 480px; }
+
+    .table-filter-shell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 6px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: linear-gradient(180deg,#ffffff,#f8fafc);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    .table-filter-field {
+      position: relative;
+      flex: 1;
+      min-width: 148px;
+    }
+
+    .table-filter-summary {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
 
     table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 
@@ -561,7 +741,6 @@
       padding: 10px 14px;
       text-align: left;
       cursor: pointer;
-      white-space: nowrap;
       position: sticky;
       top: 0;
       z-index: 1;
@@ -578,7 +757,6 @@
       padding: 9px 14px;
       font-family: var(--font-mono);
       font-size: 0.74rem;
-      white-space: nowrap;
     }
 
     td.ts     { color: var(--muted); font-size: 0.68rem; }
@@ -592,10 +770,11 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 22px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
       gap: 10px;
+      align-self: start;
     }
 
     .sys-row {
@@ -618,6 +797,74 @@
     }
     .sys-dot.live { background: var(--good); box-shadow: 0 0 6px var(--good); animation: pulse 2s infinite; }
     .sys-dot.err  { background: var(--hazardous); }
+
+    /* QR modal */
+    #qrModal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(10px);
+      z-index: 10000;
+    }
+    #qrModal.show { display: flex; }
+
+    .qr-card {
+      width: min(100%, 380px);
+      background: #ffffff;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+      text-align: center;
+    }
+
+    .qr-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    #qrCanvas {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+      margin-bottom: 14px;
+    }
+
+    .qr-url {
+      font-size: 0.72rem;
+      line-height: 1.6;
+      color: var(--muted);
+      word-break: break-all;
+      background: var(--surface2);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+
+    .qr-close {
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+    .qr-close:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
 
     /* Refresh bar */
     .refresh-wrap {
@@ -652,6 +899,8 @@
       padding: 40px;
       color: var(--muted);
       font-size: 0.82rem;
+      text-align: center;
+      min-height: 180px;
     }
     .spinner {
       width: 32px; height: 32px;
@@ -689,424 +938,157 @@
        RESPONSIVE
     =========================== */
     /* ===========================
-       RESPONSIVE — Tablet (iPad landscape/portrait)
+       RESPONSIVE - Tablet (iPad landscape/portrait)
     =========================== */
     @media (max-width: 1024px) {
+      .header-meta-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .cards-grid     { grid-template-columns: repeat(2, 1fr); }
       .charts-grid    { grid-template-columns: repeat(2, 1fr); }
       .analytics-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
     /* ===========================
-       RESPONSIVE — Mobile large (iPhone Plus, Android)
+       RESPONSIVE - Mobile large (iPhone Plus, Android)
     =========================== */
     @media (max-width: 768px) {
-      .wrapper { padding: 0 16px 40px; }
-
-      header {
-        padding: 16px 0 20px;
-        gap: 12px;
+      /* Prevent iOS auto-zoom on text and date inputs */
+      input[type="date"], 
+      input[type="text"], 
+      .config-panel input {
+        font-size: 16px !important; 
       }
 
-      .header-left { gap: 12px; }
+      .table-card {
+        padding: 16px 12px;
+      }
 
-      /* pill แสดงใน header-left ซ่อนเฉพาะบนมือถือเล็กมาก */
-      .pill { font-size: 0.68rem; padding: 4px 10px; }
-
-      /* ปุ่ม 4 ตัว grid 2x2 */
-      .header-right {
+      #dateFilter {
         width: 100%;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
+        min-width: unset;
+        appearance: none;
       }
-      .header-right .btn {
-        padding: 10px 8px;
-        font-size: 0.78rem;
-        justify-content: center;
-        white-space: nowrap;
-        min-width: 0;
-        gap: 5px;
-      }
-      .header-right .btn-pdf { grid-column: 1 / -1; }
-      .header-right .btn-csv { color: var(--accent); border-color: var(--accent); }
-
-      .header-title h1 { font-size: 1.05rem; }
-      .header-title p  { display: none; }
-
-      .cards-grid     { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-      .charts-grid    { grid-template-columns: 1fr; gap: 10px; }
-      .analytics-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-
-      .status-gauge-row { grid-template-columns: 1fr !important; gap: 10px; }
-
-      .bottom-row { grid-template-columns: 1fr !important; }
-
-      .gauge-wrap { width: 180px; height: 100px; }
-      .gauge-labels { width: 180px; }
-      .gauge-number { font-size: 1.4rem; }
-
-      /* ซ่อน pill status badge บนมือถือ */
-      .pill { display: none; }
-
-      /* QR modal */
-      .qr-card { padding: 24px 20px; }
-
-      /* Toast */
-      #toast { bottom: 16px; right: 16px; left: 16px; max-width: none; font-size: 0.78rem; }
+      #dateFilter::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; inset: 0; width: 100%; cursor: pointer; }
+      #dateFilter::-webkit-datetime-edit { padding-right: 4px; }
     }
 
-    /* ===========================
-       RESPONSIVE — Mobile small (iPhone SE, 375px)
-    =========================== */
-    @media (max-width: 480px) {
-      .wrapper { padding: 0 12px 32px; }
-      header   { padding: 14px 0 18px; }
-
-      .header-title h1 { font-size: 0.92rem; }
-
-      /* header ปุ่ม grid 2x2 เหมือนกัน */
-      .header-right { gap: 5px; }
-      .header-right .btn { padding: 9px 6px; font-size: 0.73rem; }
-
-      .cards-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-      }
-      .sensor-card { padding: 14px 12px 10px; }
-      .card-value  { font-size: 1.5rem; }
-      .card-icon   { width: 28px; height: 28px; font-size: 14px; margin-bottom: 8px; }
-
-      .charts-grid    { grid-template-columns: 1fr; gap: 8px; }
-      .analytics-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-      .analytics-value { font-size: 1.2rem; }
-
-      .chart-container { height: 160px; }
-
-      /* Table */
-      tbody td, thead th { padding: 7px 8px; font-size: 0.68rem; }
-
-      /* Date filter เต็มความกว้าง */
-      .table-header-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-      }
-      .table-header-row > div {
-        width: 100%;
-        justify-content: space-between;
-      }
-      #dateFilter { flex: 1; min-width: 0; width: 100%; }
+    .sensor-card,
+    .status-panel,
+    .gauge-panel,
+    .chart-card,
+    .analytics-card,
+    .table-card,
+    .system-card {
+      box-shadow: 0 1px 0 rgba(255,255,255,0.55);
     }
-
-    /* ===========================
-       RESPONSIVE — Very small (320px)
-    =========================== */
-    @media (max-width: 360px) {
-      .btn-label { display: none; }
-      .header-right .btn { padding: 9px 6px; font-size: 0.75rem; }
+    .flatpickr-calendar.arrowTop::before,
+    .flatpickr-calendar.arrowTop::after { display: none; }
+    .flatpickr-months {
+      background: #ffffff;
+      border-bottom: 1px solid #e9eef5;
+      padding: 10px 10px 8px;
     }
-
-    /* ===========================
-       RESPONSIVE — Touch: เพิ่ม tap target
-    =========================== */
-    @media (hover: none) and (pointer: coarse) {
-      .btn          { min-height: 44px; }
-      thead th      { padding: 12px 14px; }
-      tbody td      { padding: 11px 14px; }
-      .sensor-card:hover  { transform: none; }
-      .analytics-card:hover { transform: none; }
-    }
-
-    /* ===== PRINT / PDF STYLES ===== */
-    @media print {
-      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-
-      body { background: #fff !important; font-size: 11pt; }
-
-      /* ซ่อนส่วนที่ไม่ต้องการใน PDF */
-      #splash, #topBar,
-      .header-right,
-      #settingsPanel,
-      .config-panel,
-      .refresh-bar-wrap,
-      .sys-section { display: none !important; }
-
-      /* Layout */
-      .wrapper { max-width: 100%; padding: 0 12px; }
-
-      header {
-        padding: 12px 0 16px;
-        border-bottom: 2px solid #0284c7;
-        margin-bottom: 16px;
-      }
-      .logo-icon { width: 36px; height: 36px; font-size: 18px; }
-      h1 { font-size: 16pt; }
-      header p { font-size: 9pt; }
-
-      /* Cards — 4 in a row */
-      .cards-grid { grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px; }
-      .sensor-card { padding: 12px; break-inside: avoid; }
-      .card-value { font-size: 1.6rem; }
-
-      /* Status + Gauge row */
-      .status-gauge-row { grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
-      .status-panel, .gauge-panel { padding: 12px; break-inside: avoid; }
-
-      /* Charts — 3 columns จะแคบเกิน พับเป็น 1 คอลัมน์ */
-      .section-title { font-size: 8pt; margin-bottom: 8px; margin-top: 14px; }
-      .charts-grid { grid-template-columns: 1fr; gap: 10px; }
-      .chart-card { break-inside: avoid; padding: 12px; }
-      .chart-container { height: 180px !important; }
-
-      /* Analytics */
-      .analytics-grid { grid-template-columns: repeat(3,1fr); gap: 8px; }
-      .analytics-card { padding: 10px; break-inside: avoid; }
-
-      /* Table */
-      .table-card { break-inside: avoid; }
-      .table-scroll { max-height: none !important; overflow: visible !important; }
-      .table-header-row { display: none; }
-      table { font-size: 8pt; }
-      th, td { padding: 5px 8px; }
-
-      /* Page breaks */
-      .charts-grid, .analytics-grid { page-break-before: auto; }
-
-      /* Footer timestamp */
-      .wrapper::after {
-        content: 'Generated: ' attr(data-export-time);
-        display: block;
-        text-align: right;
-        font-size: 7pt;
-        color: #94a3b8;
-        margin-top: 16px;
-        padding-top: 8px;
-        border-top: 1px solid #e2e8f0;
-      }
-    }
-
-    /* ===========================
-       SMOOTH UX ENHANCEMENTS
-    =========================== */
-
-    /* Card value flip animation เมื่อค่าเปลี่ยน */
-    @keyframes valueFlip {
-      0%   { opacity: 0; transform: translateY(-8px) scale(0.95); }
-      100% { opacity: 1; transform: translateY(0)    scale(1); }
-    }
-    .card-value.updating {
-      animation: valueFlip .35s cubic-bezier(.34,1.4,.64,1) both;
-    }
-
-    /* Skeleton loading */
-    @keyframes shimmer {
-      0%   { background-position: -400px 0; }
-      100% { background-position:  400px 0; }
-    }
-    .skeleton {
-      display: inline-block;
-      background: linear-gradient(90deg, var(--surface2) 25%, #e2e8f0 50%, var(--surface2) 75%);
-      background-size: 400px 100%;
-      animation: shimmer 1.4s infinite linear;
-      border-radius: 6px;
-      color: transparent !important;
-      user-select: none;
-      min-width: 60px;
-    }
-
-    /* Table row fade-in */
-    @keyframes rowFadeIn {
-      from { opacity: 0; transform: translateX(-6px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-    tbody tr {
-      animation: rowFadeIn .25s ease both;
-    }
-    /* Stagger ด้วย JS แต่ cap ที่ 20 rows เพื่อ performance */
-
-    /* Analytics value count-up flash */
-    @keyframes statPop {
-      0%   { opacity: 0; transform: scale(0.8); }
-      70%  { transform: scale(1.08); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-    .analytics-value.pop {
-      animation: statPop .4s cubic-bezier(.34,1.56,.64,1) both;
-    }
-
-    /* Gauge number pop */
-    .gauge-number.pop {
-      animation: statPop .5s cubic-bezier(.34,1.56,.64,1) both;
-    }
-
-    /* AQ badge smooth transition */
-    .aq-status-badge {
-      transition: background .5s ease, color .5s ease,
-                  border-color .5s ease, box-shadow .3s ease;
-    }
-
-    /* Button active press */
-    .btn:active { transform: scale(0.96) !important; transition: transform .08s !important; }
-
-    /* Smooth table scroll */
-    .table-scroll { scroll-behavior: smooth; }
-
-    /* Settings panel slide-down */
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    #settingsPanel[style*="block"] {
-      animation: slideDown .2s ease both;
-    }
-
-    /* Header dot glow pulse on Live */
-    @keyframes livePulse {
-      0%,100% { box-shadow: 0 0 0 0 rgba(120,190,33,0.5); }
-      50%     { box-shadow: 0 0 0 5px rgba(120,190,33,0); }
-    }
-    #headerDot.live-glow {
-      animation: livePulse 2s ease infinite;
-    }
-
-    /* Toast slide+fade improved */
-    #toast {
-      transition: transform .3s cubic-bezier(.34,1.4,.64,1), opacity .3s ease;
-    }
-
-    /* Refresh fill bar ease */
-    .refresh-fill { transition: width 1s cubic-bezier(.4,0,.2,1); }
-
-    /* ===========================
-       QR CODE MODAL
-    =========================== */
-    #qrModal {
-      position: fixed;
-      inset: 0;
-      z-index: 8000;
-      background: rgba(15,23,42,0.55);
-      backdrop-filter: blur(6px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity .25s ease, visibility .25s ease;
-    }
-    #qrModal.show {
-      opacity: 1;
-      visibility: visible;
-    }
-    .qr-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
-      padding: 28px 32px 24px;
-      text-align: center;
-      max-width: 320px;
-      width: 90%;
-      animation: qrPop .3s cubic-bezier(.34,1.56,.64,1) both;
-    }
-    @keyframes qrPop {
-      from { transform: scale(0.85); opacity: 0; }
-      to   { transform: scale(1);    opacity: 1; }
-    }
-    .qr-title {
-      font-size: 0.72rem;
+    .flatpickr-current-month {
+      left: 40px;
+      right: 40px;
+      height: 28px;
+      padding-top: 1px;
+      font-size: 0.95rem;
       font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 16px;
+      color: #0f172a;
+      text-align: left;
+      letter-spacing: 0;
     }
-    #qrCanvas {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 14px;
+    .flatpickr-current-month .flatpickr-monthDropdown-months,
+    .flatpickr-current-month input.cur-year {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 0.95rem;
     }
-    #qrCanvas canvas, #qrCanvas img {
-      border-radius: 10px;
-      border: 6px solid #fff;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    .flatpickr-current-month .flatpickr-monthDropdown-months { padding: 0; }
+    .numInputWrapper:hover { background: transparent; }
+    .flatpickr-weekdays {
+      background: #ffffff;
+      padding: 4px 10px 0;
     }
-    .qr-url {
-      font-family: var(--font-mono);
-      font-size: 0.62rem;
-      color: var(--muted);
-      word-break: break-all;
-      margin-bottom: 18px;
-      line-height: 1.6;
-      background: var(--surface2);
-      padding: 8px 12px;
-      border-radius: 8px;
+    span.flatpickr-weekday {
+      color: #475569;
+      font-weight: 700;
+      font-size: 0.69rem;
+      letter-spacing: 0.01em;
     }
-    .qr-empty {
-      font-size: 0.8rem;
-      color: var(--muted);
-      padding: 20px 0;
-    }
-    .qr-close {
+    .flatpickr-innerContainer,
+    .flatpickr-rContainer,
+    .flatpickr-days,
+    .dayContainer {
       width: 100%;
-      padding: 10px;
-      border: 1px solid var(--border);
-      border-radius: 99px;
-      background: transparent;
-      color: var(--muted);
-      font-family: var(--font-body);
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .2s;
+      min-width: 100%;
+      max-width: 100%;
     }
-    .qr-close:hover { border-color: var(--accent); color: var(--accent); }
-  </style>
-</head>
-<body>
-
-<!-- Top loading bar -->
-<div id="topBar" style="
-  position:fixed;top:0;left:0;width:0%;height:3px;z-index:99999;
-  background:linear-gradient(90deg,#0284c7,#7c3aed,#0284c7);
-  background-size:200% 100%;
-  border-radius:0 2px 2px 0;
-  transition:width .3s ease,opacity .4s ease;
-  opacity:0;
-"></div>
-
-<!-- Splash / Loading Screen -->
-<div id="splash">
-  <div class="splash-bg"></div>
-  <div class="splash-content">
-    <div class="splash-logo" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0284c7"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
-    </linearGradient>
-  </defs>
-  <rect width="80" height="80" rx="22" fill="url(#grad1)"/>
-  <!-- Leaf -->
-  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
-  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <!-- Air waves right side -->
-  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
-  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
-  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
-</svg></div>
-    <div class="splash-title">Air Quality<br>Monitoring</div>
-    <div class="splash-sub">Real-time Environmental Monitoring System</div>
-    <div class="splash-bar-wrap">
-      <div class="splash-bar" id="splashBar"></div>
-    </div>
-    <div class="splash-status" id="splashStatus">กำลังเชื่อมต่อ…</div>
-  </div>
-</div>
-
-<style>
-#splash {
+    .flatpickr-days {
+      padding: 6px 10px 10px;
+      background: #ffffff;
+    }
+    .dayContainer {
+      gap: 2px;
+      justify-content: center;
+    }
+    .flatpickr-day {
+      max-width: 30px;
+      height: 30px;
+      line-height: 30px;
+      margin: 1px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      color: #0f172a;
+      font-weight: 500;
+      font-size: 0.83rem;
+      transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .flatpickr-day:hover {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    .flatpickr-day.selected,
+    .flatpickr-day.startRange,
+    .flatpickr-day.endRange,
+    .flatpickr-day.selected:hover,
+    .flatpickr-day.startRange:hover,
+    .flatpickr-day.endRange:hover {
+      background: #0f6cbd;
+      border-color: #0f6cbd;
+      color: #ffffff;
+      box-shadow: none;
+    }
+    .flatpickr-day.today {
+      border-color: #93c5fd;
+      color: #0f172a;
+      background: #f8fbff;
+    }
+    .flatpickr-day.flatpickr-disabled,
+    .flatpickr-day.prevMonthDay,
+    .flatpickr-day.nextMonthDay {
+      color: #94a3b8;
+    }
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+      top: 8px;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 8px;
+      color: #475569;
+      fill: #475569;
+      background: transparent;
+      box-shadow: none;
+    }
+    .flatpickr-months .flatpickr-prev-month:hover,
+    .flatpickr-months .flatpickr-next-month:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      fill: #0f172a;
+      box-shadow: inset 0 0 0 1px #e2e8f0;
+    }
+  #splash {
   position: fixed;
   inset: 0;
   z-index: 9000;
@@ -1227,17 +1209,59 @@
   color: #94a3b8;
   animation: fadeUp .5s .4s both;
 }
-</style>
 
-<div class="wrapper">
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    #logoTrigger { cursor: pointer; }
+    @keyframes barShimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+    #topBar.running { animation: barShimmer 1.2s linear infinite; }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<noscript><div style="margin:16px 24px;padding:12px 14px;border:1px solid rgba(220,38,38,0.22);border-radius:12px;background:#fff1f2;color:#991b1b;font-size:0.9rem">This dashboard requires JavaScript to load live data and interactive charts.</div></noscript>
 
-  <!-- =======================
-       HEADER
-  ======================== -->
+<div id="topBar" aria-hidden="true" style="
+  position:fixed;top:0;left:0;width:0%;height:3px;z-index:99999;
+  background:linear-gradient(90deg,#0284c7,#7c3aed,#0284c7);
+  background-size:200% 100%;
+  border-radius:0 2px 2px 0;
+  transition:width .3s ease,opacity .4s ease;
+  opacity:0;
+"></div>
+
+<div id="splash">
+  <div class="splash-bg"></div>
+  <div class="splash-content">
+    <div class="splash-logo" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="22" fill="url(#grad1)"/>
+  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+</svg></div>
+    <div class="splash-title">Air Quality<br>Monitoring</div>
+    <div class="splash-sub">Real-time Environmental Monitoring System</div>
+    <div class="splash-bar-wrap">
+      <div class="splash-bar" id="splashBar"></div>
+    </div>
+    <div class="splash-status" id="splashStatus">Connecting...</div>
+  </div>
+</div>
+
+
+
+<main id="main-content" class="wrapper">
+
   <header>
     <div class="header-left">
-      <!-- คลิก logo 3 ครั้งติดกัน เพื่อเปิด Settings -->
-      <div class="logo-icon" id="logoTrigger" title="" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="48" height="48" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div class="logo-icon" id="logoTrigger" role="button" tabindex="0" aria-label="Open settings panel" title="Open settings panel" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="48" height="48" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0284c7"/>
@@ -1255,13 +1279,13 @@
         <h1>Air Quality Monitoring Dashboard</h1>
         <p>Real-time Environmental Monitoring System</p>
       </div>
-      <div class="pill">
+      <div class="pill" role="status" aria-live="polite">
         <span class="dot" id="headerDot"></span>
         <span id="headerStatus">Offline</span>
       </div>
     </div>
     <div class="header-right">
-      <button class="btn btn-outline btn-qr" onclick="openQR()" title="QR Code">
+      <button type="button" class="btn btn-outline btn-qr" onclick="openQR()" title="QR Code" aria-label="Open QR code modal">
         <svg width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
           <rect x="3" y="3" width="2" height="2" fill="currentColor"/>
@@ -1276,14 +1300,34 @@
         </svg>
         <span class="btn-label">QR</span>
       </button>
-      <button class="btn btn-outline btn-refresh" onclick="loadData()">⟳ <span class="btn-label">Refresh</span></button>
-      <button class="btn btn-outline btn-csv" onclick="downloadCSV()">⬇ <span class="btn-label">CSV</span></button>
-      <button class="btn btn-primary btn-pdf" onclick="exportPDF()">🖨 <span class="btn-label">Export PDF</span></button>
+      <button type="button" class="btn btn-outline btn-refresh" onclick="loadData()" aria-label="Reload dashboard data">Reload <span class="btn-label">Data</span></button>
+      <button type="button" class="btn btn-outline btn-csv" onclick="downloadCSV()" aria-label="Download CSV file">Download <span class="btn-label">CSV</span></button>
+      <button type="button" class="btn btn-primary btn-pdf" onclick="exportPDF()" aria-label="Export report as PDF">Export <span class="btn-label">PDF</span></button>
     </div>
   </header>
 
-  <!-- Hidden Settings Panel (เปิดด้วยการคลิก logo 3 ครั้ง) -->
-  <div id="settingsPanel" style="
+  <div class="header-meta-strip">
+    <div class="meta-chip">
+      <div>
+        <div class="meta-chip-label">Last Sync</div>
+        <div class="meta-chip-value" id="headerLastSync" aria-live="polite">Waiting for first load</div>
+      </div>
+    </div>
+    <div class="meta-chip">
+      <div>
+        <div class="meta-chip-label">Data Window</div>
+        <div class="meta-chip-value" id="headerRange" aria-live="polite">Latest reading ready</div>
+      </div>
+    </div>
+    <div class="meta-chip">
+      <div>
+        <div class="meta-chip-label">Records</div>
+        <div class="meta-chip-value" id="headerRecordCount" aria-live="polite">No data loaded</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="settingsPanel" aria-label="Dashboard settings" style="
     display:none;
     background:#fff;
     border:1px solid var(--border);
@@ -1294,12 +1338,12 @@
     animation: fadeIn .2s ease;
   ">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <span style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">⚙️ Settings</span>
-      <button onclick="closeSettings()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--muted);line-height:1">✕</button>
+      <span style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">Settings</span>
+      <button type="button" aria-label="Close settings" onclick="closeSettings()" style="width:32px;height:32px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;cursor:pointer;font-size:0.95rem;color:#475569;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,0.82)">x</button>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <label style="font-size:0.78rem;color:var(--muted);white-space:nowrap">🔗 Apps Script URL</label>
-      <input type="text" id="sheetsUrl" style="
+      <label for="sheetsUrl" style="font-size:0.78rem;color:var(--muted);white-space:nowrap">Apps Script URL</label>
+      <input type="url" id="sheetsUrl" inputmode="url" autocomplete="off" spellcheck="false" aria-describedby="settingsHelp" style="
         flex:1;min-width:260px;
         background:var(--surface2);
         border:1px solid var(--border);
@@ -1309,78 +1353,66 @@
         font-size:0.74rem;
         color:var(--text);
         outline:none;
-      " placeholder="https://script.google.com/macros/s/…/exec"/>
-      <button class="btn btn-primary" onclick="saveAndLoad()">💾 Save & Load</button>
+      " placeholder="https://script.google.com/macros/s/.../exec"/>
+      <span id="settingsHelp" class="sr-only">Paste a deployed Google Apps Script web app URL, then activate Save and Load.</span>
+      <button type="button" class="btn btn-primary" onclick="saveAndLoad()">Save & Load</button>
     </div>
-  </div>
-
-  <style>
-    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
-    #logoTrigger { cursor: pointer; }
-    @keyframes barShimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
-    #topBar.running { animation: barShimmer 1.2s linear infinite; }
-  </style>
+  </section>
 
 
 
-  <!-- =======================
-       SENSOR CARDS
-  ======================== -->
-  <div class="section-title">Current Readings</div>
+
+  <h2 class="section-title" id="current-readings-title">Current Readings</h2>
   <div class="cards-grid">
     <div class="sensor-card card-pm25">
-      <div class="card-icon">💨</div>
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:translateY(0.5px)"><path d="M4 14c2.5-4 5.5-6 9-6 3 0 5.2 1.3 7 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 18c2-2.8 4.3-4.2 7-4.2 2.3 0 4.3.9 6 2.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity="0.75"/><circle cx="8" cy="9" r="1.4" fill="currentColor"/><circle cx="13" cy="6.5" r="1.2" fill="currentColor" opacity="0.8"/></svg></div>
       <div class="card-label">PM2.5</div>
       <div class="card-value-row">
-        <div class="card-value" id="val-pm25">—</div>
-        <div class="card-unit">µg/m³</div>
+        <div class="card-value" id="val-pm25">--</div>
+        <div class="card-unit">&micro;g/m&sup3;</div>
       </div>
-      <div class="card-delta" id="delta-pm25">Awaiting data…</div>
+      <div class="card-delta" id="delta-pm25">Awaiting data...</div>
     </div>
     <div class="sensor-card card-pm10">
-      <div class="card-icon">🌫️</div>
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:scale(0.96)"><circle cx="8" cy="8" r="2.2" fill="currentColor"/><circle cx="15.5" cy="7" r="1.7" fill="currentColor" opacity="0.8"/><circle cx="12" cy="13" r="2.5" fill="currentColor" opacity="0.7"/><circle cx="17" cy="15.5" r="1.8" fill="currentColor" opacity="0.55"/><circle cx="6.5" cy="15.5" r="1.5" fill="currentColor" opacity="0.5"/></svg></div>
       <div class="card-label">PM10</div>
       <div class="card-value-row">
-        <div class="card-value" id="val-pm10">—</div>
-        <div class="card-unit">µg/m³</div>
+        <div class="card-value" id="val-pm10">--</div>
+        <div class="card-unit">&micro;g/m&sup3;</div>
       </div>
-      <div class="card-delta" id="delta-pm10">Awaiting data…</div>
+      <div class="card-delta" id="delta-pm10">Awaiting data...</div>
     </div>
     <div class="sensor-card card-temp">
-      <div class="card-icon">🌡️</div>
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:translateY(0.5px)"><path d="M10 5.5a2 2 0 1 1 4 0v7.1a4 4 0 1 1-4 0V5.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 9v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.7" fill="currentColor"/></svg></div>
       <div class="card-label">Temperature</div>
       <div class="card-value-row">
-        <div class="card-value" id="val-temp">—</div>
-        <div class="card-unit">°C</div>
+        <div class="card-value" id="val-temp">--</div>
+        <div class="card-unit">&deg;C</div>
       </div>
-      <div class="card-delta" id="delta-temp">Awaiting data…</div>
+      <div class="card-delta" id="delta-temp">Awaiting data...</div>
     </div>
     <div class="sensor-card card-hum">
-      <div class="card-icon">💧</div>
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:translateY(0.5px)"><path d="M12 4.5c3.2 4.1 5 6.9 5 9.3A5 5 0 1 1 7 13.8c0-2.4 1.8-5.2 5-9.3Z" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 15.5c.7 1.1 1.6 1.6 2.8 1.6 1.2 0 2.1-.5 2.7-1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity="0.7"/></svg></div>
       <div class="card-label">Humidity</div>
       <div class="card-value-row">
-        <div class="card-value" id="val-hum">—</div>
+        <div class="card-value" id="val-hum">--</div>
         <div class="card-unit">%</div>
       </div>
-      <div class="card-delta" id="delta-hum">Awaiting data…</div>
+      <div class="card-delta" id="delta-hum">Awaiting data...</div>
     </div>
   </div>
 
-  <!-- =======================
-       STATUS + GAUGE
-  ======================== -->
   <div class="status-gauge-row">
 
-    <!-- Air Quality Status -->
     <div class="status-panel">
-      <div class="section-title" style="margin-bottom:0">Air Quality Index</div>
+      <div class="section-title">Air Quality Index</div>
 
       <div id="aqBadge" class="aq-status-badge status-good">
         <span class="badge-dot" id="aqDot" style="background:var(--muted)"></span>
-        <span id="aqText">Waiting for data…</span>
+        <span id="aqText">Waiting for data...</span>
       </div>
 
-      <div>
+      <div class="status-scale-wrap" aria-hidden="true">
         <div class="status-scale">
           <div class="scale-item"></div>
           <div class="scale-item"></div>
@@ -1396,10 +1428,9 @@
       </div>
     </div>
 
-    <!-- PM2.5 Gauge Meter -->
     <div class="gauge-panel">
-      <div class="section-title" style="margin-bottom:0;width:100%">PM2.5 Gauge</div>
-      <div style="margin-top:14px">
+      <div class="section-title">PM2.5 Gauge</div>
+      <div>
         <div class="gauge-wrap">
           <svg class="gauge-svg" viewBox="0 0 200 110">
             <defs>
@@ -1414,8 +1445,8 @@
             <path id="gaugeFill"  class="gauge-fill"  d="M 15 105 A 85 85 0 0 1 185 105"/>
           </svg>
           <div class="gauge-center-text">
-            <div class="gauge-number" id="gaugeNum">—</div>
-            <div class="gauge-unit">µg/m³</div>
+            <div class="gauge-number" id="gaugeNum">--</div>
+            <div class="gauge-unit">&micro;g/m&sup3;</div>
           </div>
         </div>
         <div class="gauge-labels" style="width:200px">
@@ -1426,10 +1457,9 @@
       </div>
     </div>
 
-    <!-- PM10 Gauge Meter -->
     <div class="gauge-panel">
-      <div class="section-title" style="margin-bottom:0;width:100%">PM10 Gauge</div>
-      <div style="margin-top:14px">
+      <div class="section-title">PM10 Gauge</div>
+      <div>
         <div class="gauge-wrap">
           <svg class="gauge-svg" viewBox="0 0 200 110">
             <defs>
@@ -1444,8 +1474,8 @@
             <path id="gaugeFill10"  class="gauge-fill"  d="M 15 105 A 85 85 0 0 1 185 105" style="stroke:url(#gaugeGrad10)"/>
           </svg>
           <div class="gauge-center-text">
-            <div class="gauge-number" id="gaugeNum10" style="color:var(--pm10-color)">—</div>
-            <div class="gauge-unit">µg/m³</div>
+            <div class="gauge-number" id="gaugeNum10" style="color:var(--pm10-color)">--</div>
+            <div class="gauge-unit">&micro;g/m&sup3;</div>
           </div>
         </div>
         <div class="gauge-labels" style="width:200px">
@@ -1457,10 +1487,7 @@
     </div>
   </div>
 
-  <!-- =======================
-       CHARTS
-  ======================== -->
-  <div class="section-title">Trend Analysis</div>
+  <h2 class="section-title" id="trend-analysis-title">Trend Analysis</h2>
   <div class="charts-grid">
     <div class="chart-card">
       <div class="chart-card-title">
@@ -1486,104 +1513,107 @@
     </div>
   </div>
 
-  <!-- =======================
-       ANALYTICS
-  ======================== -->
-  <div class="section-title">Analytics Summary</div>
+  <h2 class="section-title" id="analytics-summary-title">Analytics Summary</h2>
   <div class="analytics-grid">
     <div class="analytics-card">
       <div class="analytics-label">Avg PM2.5</div>
-      <div class="analytics-value" id="stat-avgPm25">—</div>
-      <div class="analytics-sub">µg/m³</div>
+      <div class="analytics-value" id="stat-avgPm25">--</div>
+      <div class="analytics-sub">&micro;g/m&sup3;</div>
     </div>
     <div class="analytics-card">
       <div class="analytics-label">Max PM2.5</div>
-      <div class="analytics-value" id="stat-maxPm25" style="color:var(--hazardous)">—</div>
-      <div class="analytics-sub">µg/m³</div>
+      <div class="analytics-value" id="stat-maxPm25" style="color:var(--hazardous)">--</div>
+      <div class="analytics-sub">&micro;g/m&sup3;</div>
     </div>
     <div class="analytics-card">
       <div class="analytics-label">Min PM2.5</div>
-      <div class="analytics-value" id="stat-minPm25" style="color:var(--good)">—</div>
-      <div class="analytics-sub">µg/m³</div>
+      <div class="analytics-value" id="stat-minPm25" style="color:var(--good)">--</div>
+      <div class="analytics-sub">&micro;g/m&sup3;</div>
     </div>
     <div class="analytics-card">
       <div class="analytics-label">Avg Temperature</div>
-      <div class="analytics-value" id="stat-avgTemp" style="color:var(--temp-color)">—</div>
-      <div class="analytics-sub">°C</div>
+      <div class="analytics-value" id="stat-avgTemp" style="color:var(--temp-color)">--</div>
+      <div class="analytics-sub">&deg;C</div>
     </div>
     <div class="analytics-card">
       <div class="analytics-label">Avg Humidity</div>
-      <div class="analytics-value" id="stat-avgHum" style="color:var(--hum-color)">—</div>
+      <div class="analytics-value" id="stat-avgHum" style="color:var(--hum-color)">--</div>
       <div class="analytics-sub">%</div>
     </div>
     <div class="analytics-card">
       <div class="analytics-label">Total Records</div>
-      <div class="analytics-value" id="stat-total" style="color:var(--pm10-color)">—</div>
+      <div class="analytics-value" id="stat-total" style="color:var(--pm10-color)">--</div>
       <div class="analytics-sub">data points</div>
     </div>
   </div>
 
-  <!-- =======================
-       TABLE + SYSTEM STATUS
-  ======================== -->
-  <div class="section-title">Historical Data &amp; System</div>
+  <h2 class="section-title" id="historical-system-title">Historical Data &amp; System</h2>
   <div class="bottom-row">
 
-    <!-- Data Table -->
     <div class="table-card">
       <div class="table-header-row">
-        <span style="font-size:0.72rem;color:var(--muted)">Click column header to sort</span>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div style="position:relative">
-            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.85rem;pointer-events:none">📅</span>
-            <input type="date" id="dateFilter"
-              oninput="filterByDate()"
+        <span class="table-toolbar-hint" id="tableHint">Click column header to sort</span>
+        <div class="table-filter-shell">
+          <div class="table-filter-field">
+            <input type="text" id="dateFilter" placeholder="dd/mm/yyyy" aria-label="Filter by date"
               style="
-                padding:7px 10px 7px 32px;
-                border:1px solid var(--border);
-                border-radius:8px;
-                background:var(--surface2);
-                color:var(--text);
-                font-family:var(--font-body);
-                font-size:0.78rem;
+                padding:9px 40px 9px 14px;
+                border:1px solid #cbd5e1;
+                border-radius:10px;
+                background:#f4f5f7;
+                color:#334155;
+                font-weight:500;
+                letter-spacing:-0.01em;
+                font-size:0.8rem;
+                line-height:1.2;
                 outline:none;
                 cursor:pointer;
-                min-width:130px;
+                min-width:148px;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.75), 0 0 0 1px rgba(255,255,255,0.25);
               "/>
+            <span aria-hidden="true" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;pointer-events:none;color:#475569;opacity:0.95">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="4.5" y="5.5" width="15" height="14" rx="3" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 4.2v3M16 4.2v3M4.5 9.5h15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
           </div>
-          <button onclick="clearDateFilter()" style="
-            padding:7px 12px;
-            border:1px solid var(--border);
-            border-radius:8px;
-            background:transparent;
-            color:var(--muted);
-            font-size:0.75rem;
+          <button type="button" aria-label="Clear date filter" onclick="clearDateFilter()" style="
+            padding:9px 15px;
+            border:1px solid #cbd5e1;
+            border-radius:10px;
+            background:#ffffff;
+            color:#334155;
+            font-size:0.78rem;
             cursor:pointer;
             font-family:var(--font-body);
             transition:all .15s;
-          " onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'"
-             onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
-            ✕ Clear
+            line-height:1.2;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+          " onmouseover="this.style.color='#0f172a';this.style.borderColor='#94a3b8';this.style.background='#f8fafc'"
+             onmouseout="this.style.color='#334155';this.style.borderColor='#cbd5e1';this.style.background='#ffffff'">
+            Clear
           </button>
-          <span id="filterCount" style="font-size:0.7rem;color:var(--muted)"></span>
+          <span id="filterCount" class="table-filter-summary"></span>
         </div>
       </div>
       <div class="table-scroll">
-        <table id="dataTable">
+        <table id="dataTable" aria-describedby="tableHint filterCount">
+          <caption class="sr-only">Historical air quality records. Use the column headers to sort the table.</caption>
           <thead>
             <tr>
-              <th onclick="sortTable(0)">Timestamp ⇅</th>
-              <th onclick="sortTable(1)">PM2.5 ⇅</th>
-              <th onclick="sortTable(2)">PM10 ⇅</th>
-              <th onclick="sortTable(3)">Temp °C ⇅</th>
-              <th onclick="sortTable(4)">Humidity % ⇅</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="0" onclick="sortTable(0)" style="width:32%">Timestamp</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="1" onclick="sortTable(1)" style="width:17%">PM2.5</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="2" onclick="sortTable(2)" style="width:17%">PM10</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="3" onclick="sortTable(3)" style="width:17%">Temp</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="4" onclick="sortTable(4)" style="width:17%">Hum</th>
             </tr>
           </thead>
           <tbody id="tableBody">
             <tr>
               <td colspan="5">
                 <div class="loading-overlay">
-                  ℹ️ &nbsp;Load data to see historical records
+                  Load data to see historical records
                 </div>
               </td>
             </tr>
@@ -1592,13 +1622,12 @@
       </div>
     </div>
 
-    <!-- System Status -->
     <div class="system-card">
-      <div class="section-title" style="margin-bottom:4px">System Status</div>
+      <div class="section-title">System Status</div>
 
       <div class="sys-row">
-        <div class="sys-label">🕒 Last Update</div>
-        <div class="sys-val" id="sysLastUpdate">—</div>
+        <div class="sys-label">Last Update</div>
+        <div class="sys-val" id="sysLastUpdate">--</div>
       </div>
 
       <div class="sys-row">
@@ -1610,16 +1639,15 @@
       </div>
 
       <div class="sys-row">
-        <div class="sys-label">📊 Total Records</div>
-        <div class="sys-val" id="sysTotalRec">—</div>
+        <div class="sys-label">Total Records</div>
+        <div class="sys-val" id="sysTotalRec">--</div>
       </div>
 
       <div class="sys-row">
-        <div class="sys-label">🔄 Auto Refresh</div>
+        <div class="sys-label">Auto Refresh</div>
         <div class="sys-val">Every 5 min</div>
       </div>
 
-      <!-- Countdown bar -->
       <div class="refresh-wrap">
         <div class="refresh-label">
           <span>Next auto-refresh</span>
@@ -1631,13 +1659,13 @@
       </div>
     </div>
 
-  </div><!-- /bottom-row -->
-</div><!-- /wrapper -->
+  </div>
 
-<!-- QR Code Modal -->
-<div id="qrModal" onclick="if(event.target===this) closeQR()">
+</main>
+
+<div id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" aria-hidden="true" onclick="if(event.target===this) closeQR()">
   <div class="qr-card">
-    <div class="qr-title">
+    <div class="qr-title" id="qrModalTitle">
       <svg width="44" height="44" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 10px">
         <defs>
           <linearGradient id="gradQR" x1="0" y1="0" x2="1" y2="1">
@@ -1656,17 +1684,18 @@
     </div>
     <div id="qrCanvas"></div>
     <div class="qr-url" id="qrUrlText"></div>
-    <button class="qr-close" onclick="closeQR()">✕ Close</button>
+    <button type="button" class="qr-close" onclick="closeQR()">Close</button>
   </div>
 </div>
 
 
-<!-- Toast notification -->
-<div id="toast"></div>
+<div id="toast" aria-live="polite" aria-atomic="true"></div>
 
 
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/th.js"></script>
 <script>
-// Air Quality Monitoring Dashboard — modularised script
+// Air Quality Monitoring Dashboard - modularized script
 // Wrapped in an IIFE to avoid leaking internals into global scope.
 (function (global) {
   /* ===================================================
@@ -1675,16 +1704,17 @@
   let allData  = [];      // All parsed rows
   let sortCol  = 0;       // Current sort column index
   let sortAsc  = false;   // Sort direction
+  let datePicker = null;
 
   /* ===================================================
      COLUMN NAME NORMALIZER
   =================================================== */
   const COL_MAP = {
-    'Timestamp':   ['timestamp', 'time', 'datetime', 'date', 'เวลา', 'วันที่'],
+    'Timestamp':   ['timestamp', 'time', 'datetime', 'date', '????', '??????'],
     'PM2.5':       ['pm2.5', 'pm25', 'pm2_5', 'pm2-5'],
     'PM10':        ['pm10', 'pm_10'],
-    'Temperature': ['temperature', 'temp', 'อุณหภูมิ', 'tmp'],
-    'Humidity':    ['humidity', 'humi', 'humid', 'rh', 'ความชื้น']
+    'Temperature': ['temperature', 'temp', '????????', 'tmp'],
+    'Humidity':    ['humidity', 'humi', 'humid', 'rh', '????????']
   };
 
   function normaliseRows(rows) {
@@ -1722,20 +1752,87 @@
     });
   }
 
+  function parseTimestamp(value) {
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+    if (value === null || value === undefined) return null;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const normalized = raw.replace(/\s+/g, ' ');
+    const direct = new Date(normalized);
+    if (!Number.isNaN(direct.getTime())) return direct;
+
+    const m = normalized.match(
+      /^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/
+    );
+    if (!m) return null;
+
+    let a = Number(m[1]);
+    let b = Number(m[2]);
+    let c = Number(m[3]);
+    const hour = Number(m[4] || 0);
+    const minute = Number(m[5] || 0);
+    const second = Number(m[6] || 0);
+
+    let year;
+    let month;
+    let day;
+
+    if (m[1].length === 4) {
+      year = a;
+      month = b;
+      day = c;
+    } else if (m[3].length === 4) {
+      year = c;
+      if (a > 12 && b <= 12) {
+        day = a;
+        month = b;
+      } else if (b > 12 && a <= 12) {
+        month = a;
+        day = b;
+      } else {
+        day = a;
+        month = b;
+      }
+    } else {
+      return null;
+    }
+
+    if (
+      !Number.isInteger(year) ||
+      !Number.isInteger(month) ||
+      !Number.isInteger(day) ||
+      month < 1 || month > 12 ||
+      day < 1 || day > 31
+    ) {
+      return null;
+    }
+
+    const parsed = new Date(year, month - 1, day, hour, minute, second);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
   /* ===================================================
      AUTO-REFRESH / CHART DEFAULTS
   =================================================== */
   const REFRESH_SECS = 300;
   let countdown  = REFRESH_SECS;
-  let isLoading  = false;   // หยุด countdown ระหว่างโหลด
+  let isLoading  = false;   // Pause the countdown while data is loading
+  const hasChartLib = !!global.Chart;
 
-  Chart.defaults.color       = '#64748b';
-  Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
-  Chart.defaults.font.family = "'DM Sans', sans-serif";
+  if (hasChartLib) {
+    Chart.defaults.color       = '#64748b';
+    Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
+    Chart.defaults.font.family = "'DM Sans', sans-serif";
+  }
 
   const charts = {};
 
   function makeChart(id, datasets, yLabel) {
+    if (!hasChartLib) return null;
     const ctx = document.getElementById(id).getContext('2d');
     return new Chart(ctx, {
       type: 'line',
@@ -1798,8 +1895,22 @@
   }
 
   function initCharts() {
+    if (!hasChartLib) {
+      ['chartPm25', 'chartPm10', 'chartTempHum'].forEach(id => {
+        const canvas = document.getElementById(id);
+        if (!canvas || !canvas.parentElement) return;
+        canvas.style.display = 'none';
+        const fallback = document.createElement('div');
+        fallback.className = 'loading-overlay';
+        fallback.textContent = 'Charts are unavailable because Chart.js failed to load.';
+        canvas.parentElement.appendChild(fallback);
+      });
+      showToast('Chart.js failed to load. Dashboard data will still work without charts.');
+      return;
+    }
+
     charts.pm25 = makeChart('chartPm25', [{
-      label: 'PM2.5 (µg/m³)',
+      label: 'PM2.5 (\u00B5g/m\u00B3)',
       borderColor: '#0284c7',
       backgroundColor: (ctx) => {
         const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
@@ -1809,10 +1920,10 @@
       },
       fill: true,
       data: []
-    }], 'µg/m³');
+    }], '\u00B5g/m\u00B3');
 
     charts.pm10 = makeChart('chartPm10', [{
-      label: 'PM10 (µg/m³)',
+      label: 'PM10 (\u00B5g/m\u00B3)',
       borderColor: '#7c3aed',
       backgroundColor: (ctx) => {
         const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
@@ -1822,7 +1933,7 @@
       },
       fill: true,
       data: []
-    }], 'µg/m³');
+    }], '\u00B5g/m\u00B3');
 
     const ctxTH = document.getElementById('chartTempHum').getContext('2d');
     charts.tempHum = new Chart(ctxTH, {
@@ -1831,7 +1942,7 @@
         labels: [],
         datasets: [
           {
-            label: 'Temperature (°C)',
+            label: 'Temperature (\u00B0C)',
             borderColor: '#ea580c',
             backgroundColor: 'transparent',
             fill: false,
@@ -1904,7 +2015,7 @@
             type: 'linear',
             position: 'left',
             grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
-            title: { display: true, text: '°C', color: '#ea580c', font: { size: 10 } },
+            title: { display: true, text: '\u00B0C', color: '#ea580c', font: { size: 10 } },
             ticks: { color: '#ea580c', font: { size: 10 }, padding: 6 },
             border: { display: false }
           },
@@ -1927,6 +2038,7 @@
      UPDATE CHARTS WITH DATA
   =================================================== */
   function updateCharts(rows) {
+    if (!hasChartLib || !charts.pm25 || !charts.pm10 || !charts.tempHum) return;
     const slice = rows.slice(-30);
 
     const labels   = [];
@@ -1937,9 +2049,9 @@
 
     for (let i = 0; i < slice.length; i++) {
       const r = slice[i];
-      const d = new Date(r.Timestamp);
+      const d = parseTimestamp(r.Timestamp);
 
-      if (!isNaN(d)) {
+      if (d) {
         const day   = d.getDate();
         const month = d.getMonth() + 1;
         const hour  = String(d.getHours()).padStart(2, '0');
@@ -2010,15 +2122,15 @@
      AIR QUALITY STATUS & DASHBOARD RENDER
   =================================================== */
   function getAQStatus(pm25) {
-    if (pm25 <=  50) return { cls: 'status-good',      label: '🟢 Good',      color: '#78be21' };
-    if (pm25 <= 100) return { cls: 'status-moderate',  label: '🟡 Moderate',  color: '#f5c400' };
-    if (pm25 <= 150) return { cls: 'status-unhealthy', label: '🟠 Unhealthy for Sensitive Groups', color: '#f07d00' };
-    return                  { cls: 'status-hazardous', label: '🔴 Unhealthy', color: '#dc2626' };
+    if (pm25 <=  50) return { cls: 'status-good',      label: 'Good',      color: '#78be21' };
+    if (pm25 <= 100) return { cls: 'status-moderate',  label: 'Moderate',  color: '#f5c400' };
+    if (pm25 <= 150) return { cls: 'status-unhealthy', label: 'Unhealthy for Sensitive Groups', color: '#f07d00' };
+    return                  { cls: 'status-hazardous', label: 'Unhealthy', color: '#dc2626' };
   }
 
   function renderDashboard(rows) {
     if (!rows || rows.length === 0) {
-      showToast('⚠️ ไม่พบข้อมูลใน Spreadsheet');
+      showToast('No data found in the spreadsheet.');
       return;
     }
 
@@ -2044,9 +2156,9 @@
     setText('val-temp', temp.toFixed(1), true);
     setText('val-hum',  hum.toFixed(1), true);
 
-    setDelta('delta-pm25', pm25, prev ? +prev['PM2.5']       : null, 'µg/m³');
-    setDelta('delta-pm10', pm10, prev ? +prev['PM10']        : null, 'µg/m³');
-    setDelta('delta-temp', temp, prev ? +prev['Temperature'] : null, '°C');
+    setDelta('delta-pm25', pm25, prev ? +prev['PM2.5']       : null, '\u00B5g/m\u00B3');
+    setDelta('delta-pm10', pm10, prev ? +prev['PM10']        : null, '\u00B5g/m\u00B3');
+    setDelta('delta-temp', temp, prev ? +prev['Temperature'] : null, '\u00B0C');
     setDelta('delta-hum',  hum,  prev ? +prev['Humidity']    : null, '%');
 
     // AQ badge
@@ -2055,7 +2167,7 @@
     badge.className = 'aq-status-badge ' + status.cls;
     document.getElementById('aqDot').style.background = status.color;
     document.getElementById('aqText').textContent =
-      status.label + '  —  PM2.5 ' + pm25.toFixed(1) + ' µg/m³';
+      status.label + ' - PM2.5 ' + pm25.toFixed(1) + ' \u00B5g/m\u00B3';
 
     updateGauge(pm25);
     updateGauge10(pm10);
@@ -2087,18 +2199,16 @@
     // Reverse once, reuse (was [...rows].reverse() which creates a copy)
     renderTable(rows.slice().reverse());
 
-    // Batch DOM writes — system status
+    // Batch DOM writes - system status
     const now = new Date().toLocaleTimeString('th-TH');
+    const latestTimestamp = last['Timestamp'] ? fmtTs(last['Timestamp']) : 'Latest reading available';
     setText('sysLastUpdate', now);
-    setText('sysConn',       'Connected ✓');
+    setText('sysConn',       'Connected');
     setText('sysTotalRec',   n + ' rows');
-    setText('headerStatus',  'Live');
+    updateHeaderMeta(now, latestTimestamp, n + ' total rows');
+    setHeaderConnection('Live', 'var(--good)');
 
     document.getElementById('sysDot').className = 'sys-dot live';
-    const hd = document.getElementById('headerDot');
-    hd.style.background = 'var(--good)';
-    hd.style.boxShadow  = '0 0 7px var(--good)';
-    hd.classList.add('live-glow');
 
     resetCountdown();
   }
@@ -2114,37 +2224,60 @@
     if (_dataCacheSource === allData) return _dateCache;
     _dataCacheSource = allData;
     _dateCache = allData.map(r => {
-      const d = new Date(r['Timestamp'] || '');
-      return isNaN(d) ? null : d.toISOString().slice(0, 10);
+      const d = parseTimestamp(r['Timestamp'] || '');
+      return d ? d.toISOString().slice(0, 10) : '';
     });
     return _dateCache;
   }
 
+  function normalizeFilterDate(val) {
+    if (!val) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    const m = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? (m[3] + '-' + m[2] + '-' + m[1]) : val;
+  }
+
   function filterByDate() {
-    const val = document.getElementById('dateFilter').value;
+    const val = normalizeFilterDate(document.getElementById('dateFilter').value);
     if (!val) {
       renderTable(allData.slice().reverse());
       setText('filterCount', '');
+      updateHeaderMeta(undefined, allData.length ? 'Latest reading available' : 'Latest reading ready', undefined);
       return;
     }
 
-    const cache    = getDateCache();
+    const cache = getDateCache();
     const filtered = allData.filter((_, i) => cache[i] === val);
 
     renderTable(filtered.slice().reverse());
 
     const count = filtered.length;
     const label = document.getElementById('filterCount');
-    label.textContent = count > 0 ? `${count} records` : 'ไม่พบข้อมูลวันนี้';
+    label.textContent = count > 0 ? `${count} records on this date` : 'No records for this date';
     label.style.color = count > 0 ? 'var(--good)' : 'var(--hazardous)';
+    updateHeaderMeta(undefined, 'Filtered: ' + document.getElementById('dateFilter').value, count + ' matching rows');
   }
 
   function clearDateFilter() {
-    document.getElementById('dateFilter').value = '';
+    if (datePicker) datePicker.clear();
+    else document.getElementById('dateFilter').value = '';
     renderTable(allData.slice().reverse());
     setText('filterCount', '');
+    updateHeaderMeta(undefined, allData.length ? 'Latest reading available' : 'Latest reading ready', allData.length ? allData.length + ' total rows' : 'No data loaded');
   }
 
+  function initDatePicker() {
+    if (!global.flatpickr) return;
+    datePicker = global.flatpickr('#dateFilter', {
+      dateFormat: 'd/m/Y',
+      locale: global.flatpickr.l10ns.th || 'default',
+      monthSelectorType: 'static',
+      disableMobile: true,
+      allowInput: false,
+      clickOpens: true,
+      onChange: filterByDate
+    });
+  }
   function renderTable(rows) {
     const tbody = document.getElementById('tableBody');
     if (!rows.length) {
@@ -2173,6 +2306,14 @@
     }
   }
 
+  function updateSortIndicators() {
+    const headers = document.querySelectorAll('#dataTable th[data-sort-col]');
+    headers.forEach(th => {
+      const isActive = Number(th.dataset.sortCol) === sortCol;
+      th.setAttribute('aria-sort', isActive ? (sortAsc ? 'ascending' : 'descending') : 'none');
+    });
+  }
+
   function sortTable(col) {
     if (sortCol === col) sortAsc = !sortAsc;
     else { sortCol = col; sortAsc = true; }
@@ -2180,11 +2321,12 @@
     const keys = ['Timestamp', 'PM2.5', 'PM10', 'Temperature', 'Humidity'];
     const key  = keys[col];
     const sorted = [...allData].sort((a, b) => {
-      const av = col === 0 ? a[key] : +a[key];
-      const bv = col === 0 ? b[key] : +b[key];
+      const av = col === 0 ? (parseTimestamp(a[key])?.getTime() ?? Number.NEGATIVE_INFINITY) : +a[key];
+      const bv = col === 0 ? (parseTimestamp(b[key])?.getTime() ?? Number.NEGATIVE_INFINITY) : +b[key];
       return (av > bv ? 1 : av < bv ? -1 : 0) * (sortAsc ? 1 : -1);
     });
     renderTable(sorted);
+    updateSortIndicators();
   }
 
   /* ===================================================
@@ -2196,7 +2338,7 @@
   }
 
   function splashHide() {
-    splashProgress(100, 'พร้อมใช้งาน ✓');
+    splashProgress(100, 'Ready');
     setTimeout(() => {
       document.getElementById('splash').classList.add('hide');
     }, 400);
@@ -2232,86 +2374,115 @@
   }
 
   /* ===================================================
-     DATA LOADING (JSONP)
+     DATA LOADING - fetch + CORS, JSONP fallback
   =================================================== */
   function loadData() {
     const url = document.getElementById('sheetsUrl').value.trim();
-    if (!url) {
-      showToast('⚠️ กรุณากรอก URL ก่อน');
-      return;
-    }
+    if (!url) { showToast('Please enter an Apps Script URL.'); return; }
 
     isLoading = true;
-    showToast('⏳ กำลังโหลดข้อมูล…');
-    setText('sysConn', 'Loading…');
+    showToast('Loading data...');
+    setText('sysConn', 'Loading...');
+    updateHeaderMeta('Refreshing now...', 'Checking data source...', allData.length ? allData.length + ' cached rows' : 'Preparing dataset');
+    setHeaderConnection('Syncing', 'var(--accent)');
     topBarStart();
-    // Skeleton state on cards
     ['val-pm25','val-pm10','val-temp','val-hum'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('skeleton');
     });
-
-    jsonpLoad(url);
+    fetchLoad(url);
   }
 
-  function jsonpLoad(url) {
-    const old = document.getElementById('__aqmScript');
-    if (old) old.remove();
-
-    const cbName = '__aqmCb';
-    const sep    = url.includes('?') ? '&' : '?';
-    const fullUrl = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
+  function fetchLoad(url) {
+    const sep     = url.includes('?') ? '&' : '?';
+    const fullUrl = url + sep + '_t=' + Date.now();
+    let   done    = false;
 
     const timer = setTimeout(() => {
-      const s = document.getElementById('__aqmScript');
-      if (s) s.remove();
+      if (done) return;
+      done = true; isLoading = false;
       topBarError();
-      showToast('❌ Timeout — ตรวจสอบ:\n1. URL ถูกต้อง\n2. Deploy เป็น "Anyone"\n3. Script มีฟังก์ชัน doGet');
-      setText('sysConn', 'Timeout ✗');
+      splashProgress(100, 'Timeout');
+      setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
+      showToast('Request timed out. Check the URL and deploy permissions.');
+      setText('sysConn', 'Timeout');
+      updateHeaderMeta('Sync timeout', 'Connection needs attention', allData.length ? allData.length + ' cached rows' : 'No cached data');
+      setHeaderConnection('Issue', 'var(--hazardous)');
       document.getElementById('sysDot').className = 'sys-dot err';
     }, 15000);
+
+    fetch(fullUrl)
+      .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
+      .then(text => {
+        if (done) return;
+        clearTimeout(timer); done = true;
+        let json;
+        const t = text.trim();
+        if (t.startsWith('[') || t.startsWith('{')) {
+          json = JSON.parse(t);
+        } else {
+          const m = t.match(/[^(]+[(](.+)[)]\s*;?\s*$/s);
+          if (!m) throw new Error('Unsupported response format');
+          json = JSON.parse(m[1]);
+        }
+        const raw  = Array.isArray(json) ? json : (json.data || json.values || []);
+        const rows = normaliseRows(raw);
+        console.log('[AQM] fetch OK -', rows.length, 'rows');
+        isLoading = false;
+        renderDashboard(rows);
+        topBarDone(); splashHide();
+        showToast('Loaded ' + rows.length + ' rows successfully.');
+      })
+      .catch(err => {
+        if (done) return;
+        clearTimeout(timer);
+        console.warn('[AQM] fetch failed, JSONP fallback...', err.message);
+        jsonpFallback(document.getElementById('sheetsUrl').value.trim());
+      });
+  }
+
+  function jsonpFallback(url) {
+    const old = document.getElementById('__aqmScript');
+    if (old) old.remove();
+    const cbName  = '__aqmCb';
+    const sep     = url.includes('?') ? '&' : '?';
+    const fullUrl = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
+
+    const onFail = (msg) => {
+      delete global[cbName];
+      const s = document.getElementById('__aqmScript');
+      if (s) s.remove();
+      isLoading = false; topBarError();
+      splashProgress(100, 'Connection failed');
+      setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
+      showToast(msg);
+      setText('sysConn', 'Error');
+      updateHeaderMeta('Connection failed', 'Unable to reach source', allData.length ? allData.length + ' cached rows' : 'No cached data');
+      setHeaderConnection('Issue', 'var(--hazardous)');
+      document.getElementById('sysDot').className = 'sys-dot err';
+    };
+
+    const timer = setTimeout(() => onFail('Timeout - check the URL and deploy permissions'), 15000);
 
     global[cbName] = function(json) {
       clearTimeout(timer);
       delete global[cbName];
       const s = document.getElementById('__aqmScript');
       if (s) s.remove();
-
       try {
         const raw  = Array.isArray(json) ? json : (json.data || json.values || []);
         const rows = normaliseRows(raw);
-        console.log('[AQM] Loaded', rows.length, 'rows | Columns:', rows.length ? Object.keys(rows[0]) : []);
+        console.log('[AQM] JSONP OK -', rows.length, 'rows');
         isLoading = false;
-        renderDashboard(rows);
-        topBarDone();
-        splashHide();
-        showToast('✅ โหลดสำเร็จ — ' + rows.length + ' แถว');
-      } catch (err) {
-        console.error('[AQM] Parse error:', err);
-        topBarError();
-        splashProgress(100, '❌ โหลดไม่สำเร็จ');
-        setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
-        isLoading = false;
-        showToast('❌ Parse ข้อมูลผิดพลาด: ' + err.message);
-        setText('sysConn', 'Error ✗');
-        document.getElementById('sysDot').className = 'sys-dot err';
-      }
+        renderDashboard(rows); topBarDone(); splashHide();
+        showToast('Loaded ' + rows.length + ' rows successfully.');
+      } catch(e) { onFail('Parse error: ' + e.message); }
     };
 
     const script   = document.createElement('script');
     script.id      = '__aqmScript';
     script.src     = fullUrl;
-    script.onerror = function() {
-      clearTimeout(timer);
-      delete global[cbName];
-      topBarError();
-      splashProgress(100, '❌ เชื่อมต่อไม่สำเร็จ');
-      setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
-      isLoading = false;
-      showToast('❌ โหลดสคริปต์ไม่ได้ — ตรวจสอบ URL และ Deploy permissions');
-      setText('sysConn', 'Error ✗');
-      document.getElementById('sysDot').className = 'sys-dot err';
-    };
+    script.onerror = () => { clearTimeout(timer); onFail('Load failed - check the URL and deploy permissions'); };
     document.head.appendChild(script);
   }
 
@@ -2320,13 +2491,13 @@
   =================================================== */
   function exportPDF() {
     if (!allData.length) {
-      showToast('⚠️ ยังไม่มีข้อมูล — กด Refresh ก่อน');
+      showToast('No data yet - click Reload Data first.');
       return;
     }
 
     const now = new Date().toLocaleString('th-TH', { dateStyle:'long', timeStyle:'short' });
 
-    const esc = v => String(v ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const esc = v => String(v ?? '--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     const fmtForPdf = ts => {
       const d = new Date(ts);
@@ -2356,7 +2527,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Historical Data — Air Quality</title>
+  <title>Historical Data - Air Quality</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2397,15 +2568,15 @@
     <div><h1>Historical Data Report</h1><p>Air Quality Monitoring System</p></div>
   </div>
   <div class="meta">
-    <span>📅 Export: ${now}</span>
-    <span>📊 Total: ${rows.length} records</span>
+    <span>Export: ${now}</span>
+    <span>Total: ${rows.length} records</span>
   </div>
   <table>
-    <thead><tr><th>Timestamp</th><th>PM2.5 (µg/m³)</th><th>PM10 (µg/m³)</th><th>Temp (°C)</th><th>Humidity (%)</th></tr></thead>
+    <thead><tr><th>Timestamp</th><th>PM2.5 (&micro;g/m&sup3;)</th><th>PM10 (&micro;g/m&sup3;)</th><th>Temp (&deg;C)</th><th>Humidity (%)</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
   </table>
   <div class="footer"><span>Air Quality Monitoring Dashboard</span><span>${now}</span></div>
-  <script>window.onload=function(){window.print();}<\/script>
+<script>window.onload=function(){window.print();}<\/script>
 </body></html>`;
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
@@ -2414,14 +2585,14 @@
     if (win) {
       win.addEventListener('afterprint', () => URL.revokeObjectURL(url));
     } else {
-      showToast('⚠️ กรุณาอนุญาต Pop-up ใน browser ก่อนครับ');
+      showToast('Please allow pop-ups in your browser first.');
       URL.revokeObjectURL(url);
     }
   }
 
   function downloadCSV() {
     if (!allData.length) {
-      showToast('⚠️ ยังไม่มีข้อมูล — กด Load Data ก่อน');
+      showToast('No data yet - click Reload Data first.');
       return;
     }
 
@@ -2439,7 +2610,7 @@
     link.download = 'air_quality_' + new Date().toISOString().slice(0, 10) + '.csv';
     link.click();
     URL.revokeObjectURL(link.href);
-    showToast('💾 ดาวน์โหลด CSV สำเร็จ (' + allData.length + ' rows)');
+    showToast('CSV downloaded (' + allData.length + ' rows).');
   }
 
   /* ===================================================
@@ -2450,7 +2621,7 @@
   }
 
   setInterval(() => {
-    // หยุดนับระหว่างโหลดข้อมูล — เริ่มนับต่อเมื่อข้อมูลมาแล้ว
+    // Pause the countdown during loading and resume when fresh data arrives.
     if (isLoading) return;
 
     countdown = Math.max(0, countdown - 1);
@@ -2473,6 +2644,7 @@
   /* ===================================================
      HELPERS
   =================================================== */
+
   function setText(id, val, animate = false) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -2486,6 +2658,21 @@
     } else {
       el.textContent = val;
     }
+  }
+  function updateHeaderMeta(lastSync, rangeText, recordText) {
+    if (lastSync !== undefined) setText('headerLastSync', lastSync);
+    if (rangeText !== undefined) setText('headerRange', rangeText);
+    if (recordText !== undefined) setText('headerRecordCount', recordText);
+  }
+
+  function setHeaderConnection(state, color) {
+    setText('headerStatus', state);
+    const hd = document.getElementById('headerDot');
+    if (!hd) return;
+    hd.classList.remove('live-glow');
+    hd.style.background = color;
+    hd.style.boxShadow = color === 'var(--good)' ? '0 0 7px var(--good)' : color === 'var(--accent)' ? '0 0 7px rgba(2,132,199,0.35)' : '0 0 7px rgba(220,38,38,0.2)';
+    if (state === 'Live') hd.classList.add('live-glow');
   }
 
   function setDelta(id, cur, prev, unit) {
@@ -2503,9 +2690,9 @@
   }
 
   function fmtTs(ts, short = false) {
-    if (!ts) return '—';
-    const d = new Date(ts);
-    if (isNaN(d.getTime())) return String(ts);
+    if (!ts) return '--';
+    const d = parseTimestamp(ts);
+    if (!d) return String(ts);
     if (short) return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
   }
@@ -2523,58 +2710,73 @@
      QR CODE
   =================================================== */
   let _qrInstance = null;
+  let lastFocusedElement = null;
 
-  const DASHBOARD_URL = 'https://magg2547-creator.github.io/Air-Quality-Monitoring-Dashboard/';
+  const STORAGE_KEY   = 'aqm-script-url';
+  const DASHBOARD_URL = global.location.href;
 
   function openQR() {
+    lastFocusedElement = document.activeElement;
     const modal   = document.getElementById('qrModal');
     const wrap    = document.getElementById('qrCanvas');
     const urlText = document.getElementById('qrUrlText');
 
     urlText.textContent = DASHBOARD_URL;
-    wrap.innerHTML      = '';
+    wrap.innerHTML = '';
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { const closeBtn = modal.querySelector('.qr-close'); if (closeBtn) closeBtn.focus(); }, 0);
 
-    // ใช้ correctLevel H เพื่อให้ทน error ได้ ~30% (รองรับ logo ทับตรงกลาง)
-    _qrInstance = new QRCode(wrap, {
-      text:         DASHBOARD_URL,
-      width:        220,
-      height:       220,
-      colorDark:    '#0f172a',
-      colorLight:   '#ffffff',
-      correctLevel: QRCode.CorrectLevel.H
-    });
+    if (!global.QRCode) {
+      wrap.innerHTML = '<div style="padding:24px 18px;border:1px dashed #cbd5e1;border-radius:14px;color:#64748b;font-size:0.82rem;text-align:center">QR library unavailable<br>Open this link directly instead.</div>';
+      showToast('QR generator is unavailable right now.');
+      return;
+    }
 
-    // วาด logo ทับตรงกลาง QR หลัง QRCode render เสร็จ
+    try {
+      _qrInstance = new QRCode(wrap, {
+        text: DASHBOARD_URL,
+        width: 220,
+        height: 220,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    } catch (err) {
+      wrap.innerHTML = '<div style="padding:24px 18px;border:1px dashed #cbd5e1;border-radius:14px;color:#64748b;font-size:0.82rem;text-align:center">Unable to render QR<br>Open this link directly instead.</div>';
+      showToast('Unable to render QR code.');
+      return;
+    }
+
     setTimeout(() => {
       const qrImg = wrap.querySelector('img') || wrap.querySelector('canvas');
       if (!qrImg) return;
 
-      // สร้าง canvas ใหม่แทน img ที่ QRCode.js สร้าง
-      const c   = document.createElement('canvas');
-      c.width   = 220;
-      c.height  = 220;
+      const c = document.createElement('canvas');
+      c.width = 220;
+      c.height = 220;
       const ctx = c.getContext('2d');
+      if (!ctx) return;
 
       const drawLogo = () => {
-        // วาด QR ลง canvas
         ctx.drawImage(qrImg, 0, 0, 220, 220);
-
-        // ขนาด logo box
         const logoSize = 48;
         const x = (220 - logoSize) / 2;
         const y = (220 - logoSize) / 2;
 
-        // พื้นหลังขาวกลม
         ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(x - 4, y - 4, logoSize + 8, logoSize + 8, 12);
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(0,0,0,0.15)';
-        ctx.shadowBlur = 6;
-        ctx.fill();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.beginPath();
+          ctx.roundRect(x - 4, y - 4, logoSize + 8, logoSize + 8, 12);
+          ctx.shadowColor = 'rgba(0,0,0,0.15)';
+          ctx.shadowBlur = 6;
+          ctx.fill();
+        } else {
+          ctx.fillRect(x - 4, y - 4, logoSize + 8, logoSize + 8);
+        }
         ctx.restore();
 
-        // วาด SVG logo ด้วย Image
         const svgStr = `<svg width="${logoSize}" height="${logoSize}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="gL" x1="0" y1="0" x2="1" y2="1">
@@ -2589,13 +2791,12 @@
           <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
           <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
         </svg>`;
-        const blob   = new Blob([svgStr], { type: 'image/svg+xml' });
+        const blob = new Blob([svgStr], { type: 'image/svg+xml' });
         const svgUrl = URL.createObjectURL(blob);
-        const img    = new Image();
+        const img = new Image();
         img.onload = () => {
           ctx.drawImage(img, x, y, logoSize, logoSize);
           URL.revokeObjectURL(svgUrl);
-          // แทนที่ img เดิมด้วย canvas ใหม่
           qrImg.replaceWith(c);
         };
         img.src = svgUrl;
@@ -2608,16 +2809,19 @@
         drawLogo();
       }
     }, 50);
-
-    modal.classList.add('show');
   }
 
   function closeQR() {
-    document.getElementById('qrModal').classList.remove('show');
+    const modal = document.getElementById('qrModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
     _qrInstance = null;
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+      lastFocusedElement.focus();
+    }
   }
 
-  // ปิดด้วย Escape
+  // Close the QR modal with Escape.
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQR(); });
 
   /* ===================================================
@@ -2628,17 +2832,20 @@
   function bootstrap() {
     initCharts();
     initGauge();
+    initDatePicker();
 
-    splashProgress(30, 'เริ่มต้นระบบ…');
-    document.getElementById('sheetsUrl').value = SCRIPT_URL;
+    splashProgress(30, 'Starting dashboard...');
+    const savedUrl = global.localStorage.getItem(STORAGE_KEY);
+    document.getElementById('sheetsUrl').value = savedUrl || SCRIPT_URL;
 
-    setTimeout(() => splashProgress(60, 'กำลังโหลดข้อมูล…'), 300);
+    setTimeout(() => splashProgress(60, 'Loading latest data...'), 300);
     loadData();
 
     let logoClickCount = 0;
     let logoClickTimer = null;
+    const logoTrigger = document.getElementById('logoTrigger');
 
-    document.getElementById('logoTrigger').addEventListener('click', function() {
+    logoTrigger.addEventListener('click', function() {
       logoClickCount++;
       clearTimeout(logoClickTimer);
       logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 600);
@@ -2649,6 +2856,24 @@
         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
       }
     });
+
+    logoTrigger.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        logoTrigger.click();
+      }
+    });
+
+    document.querySelectorAll('#dataTable th[data-sort-col]').forEach(th => {
+      th.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          sortTable(Number(th.dataset.sortCol));
+        }
+      });
+    });
+
+    updateSortIndicators();
   }
 
   function closeSettings() {
@@ -2658,12 +2883,13 @@
   function saveAndLoad() {
     const url = document.getElementById('sheetsUrl').value.trim();
     if (!url) {
-      showToast('⚠️ กรุณากรอก URL');
+      showToast('Please enter an Apps Script URL.');
       return;
     }
+    global.localStorage.setItem(STORAGE_KEY, url);
     closeSettings();
     loadData();
-    showToast('✅ บันทึก URL และโหลดข้อมูลแล้ว');
+    showToast('Saved URL and started loading data.');
   }
 
   // Public API exposed for HTML event handlers
@@ -2702,3 +2928,30 @@
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
