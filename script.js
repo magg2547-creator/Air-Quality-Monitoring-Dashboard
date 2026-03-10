@@ -4,18 +4,21 @@
 
 
   /* ===================================================
-     STATE
+     STATE & AUTO-REFRESH & NOTIFICATION
   =================================================== */
-
-  /* ===================================================
-     COLUMN NAME NORMALIZER
-  =================================================== */
-  /* ===================================================
-     AUTO-REFRESH / CHART DEFAULTS
-  =================================================== */
-  const REFRESH_SECS = 300;
-  let countdown = REFRESH_SECS;
+  let currentRefreshSecs = 300;
+  let countdown = currentRefreshSecs;
   let isLoading = false;
+  let isPaused = false;
+  
+  // สถานะ Pagination
+  let currentPage = 1;
+  const TABLE_ROWS_PER_PAGE = 25;
+  let currentViewData = []; // เก็บข้อมูลที่ถูกฟิลเตอร์แล้วเพื่อเอามาแบ่งหน้า
+
+  // สถานะ Notification
+  let notificationsEnabled = false;
+  let lastAlertTimestamp = null;
 
 
   /* ===================================================
@@ -45,6 +48,8 @@
     const n    = rows.length;
     const last = rows[n - 1];
     const prev = n > 1 ? rows[n - 2] : null;
+
+    checkAirQualityAlert(last);
 
     const pm25 = parseFloat(last['PM2.5'])       || 0;
     const pm10 = parseFloat(last['PM10'])        || 0;
@@ -185,31 +190,58 @@
     });
   }
   function renderTable(rows) {
+    currentViewData = rows;
+    currentPage = 1;
+    renderTablePage();
+  }
+
+  function renderTablePage() {
     const tbody = document.getElementById('tableBody');
-    if (!rows.length) {
+    if (!currentViewData.length) {
       tbody.innerHTML = '<tr><td colspan="5"><div class="loading-overlay">No records</div></td></tr>';
+      document.getElementById('pageInfo').textContent = 'หน้า 1 / 1';
+      document.getElementById('btnPrevPage').disabled = true;
+      document.getElementById('btnNextPage').disabled = true;
       return;
     }
-    // Use push+join instead of map for large datasets (avoids closure per row)
+
+    const totalPages = Math.ceil(currentViewData.length / TABLE_ROWS_PER_PAGE) || 1;
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * TABLE_ROWS_PER_PAGE;
+    const end = start + TABLE_ROWS_PER_PAGE;
+    const pageRows = currentViewData.slice(start, end);
+
     const parts = [];
-    for (let i = 0, len = rows.length; i < len; i++) {
-      const r = rows[i];
+    for (let i = 0, len = pageRows.length; i < len; i++) {
+      const r = pageRows[i];
       parts.push(
-        '<tr><td class="ts">'   + fmtTs(r['Timestamp'] || '') +
-        '</td><td class="pm25v">' + ((parseFloat(r['PM2.5'])      || 0).toFixed(1)) +
-        '</td><td class="pm10v">' + ((parseFloat(r['PM10'])        || 0).toFixed(1)) +
-        '</td><td class="tempv">' + ((parseFloat(r['Temperature']) || 0).toFixed(1)) +
-        '</td><td class="humv">'  + ((parseFloat(r['Humidity'])    || 0).toFixed(1)) +
+        '<tr><td class="ts">'   + escapeHTML(fmtTs(r['Timestamp'] || '')) +
+        '</td><td class="pm25v">' + escapeHTML((parseFloat(r['PM2.5'])      || 0).toFixed(1)) +
+        '</td><td class="pm10v">' + escapeHTML((parseFloat(r['PM10'])        || 0).toFixed(1)) +
+        '</td><td class="tempv">' + escapeHTML((parseFloat(r['Temperature']) || 0).toFixed(1)) +
+        '</td><td class="humv">'  + escapeHTML((parseFloat(r['Humidity'])    || 0).toFixed(1)) +
         '</td></tr>'
       );
     }
     tbody.innerHTML = parts.join('');
-    // Stagger animation: cap at 20 rows to avoid perf hit
-    const rows2 = tbody.querySelectorAll('tr');
-    const cap = Math.min(rows2.length, 20);
+
+    // อัปเดตสถานะปุ่มหน้าถัดไป/ย้อนกลับ
+    document.getElementById('pageInfo').textContent = `หน้า ${currentPage} / ${totalPages}`;
+    document.getElementById('btnPrevPage').disabled = (currentPage === 1);
+    document.getElementById('btnNextPage').disabled = (currentPage === totalPages);
+
+    const rowsDOM = tbody.querySelectorAll('tr');
+    const cap = Math.min(rowsDOM.length, 20);
     for (let i = 0; i < cap; i++) {
-      rows2[i].style.animationDelay = (i * 18) + 'ms';
+      rowsDOM[i].style.animationDelay = (i * 18) + 'ms';
     }
+  }
+
+  function changePage(dir) {
+    currentPage += dir;
+    renderTablePage();
   }
 
   function updateSortIndicators() {
@@ -395,105 +427,107 @@
   /* ===================================================
      EXPORT / CSV
   =================================================== */
-  function exportPDF() {
+  function confirmExportPDF() {
+    closeExportModal(); // ปิดหน้าต่าง Popup ก่อน
+
     if (!allData.length) {
       showToast('No data yet - click Reload Data first.');
       return;
     }
 
-    const now = new Date().toLocaleString('th-TH', { dateStyle:'long', timeStyle:'short' });
+    // 1. ดึงค่าจากช่องค้นหาวันที่ในหน้าต่าง Popup
+    const filterInput = document.getElementById('pdfDateFilter').value;
+    const filterVal = normalizeFilterDate(filterInput);
+    
+    // 2. กรองข้อมูลที่จะนำไป Export
+    let rowsToExport = allData;
+    if (filterVal) {
+      const cache = getDateCache();
+      rowsToExport = allData.filter((_, i) => cache[i] === filterVal);
+    }
 
-    const esc = v => String(v ?? '--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (!rowsToExport.length) {
+      showToast('No records found for the selected date.');
+      return;
+    }
+    
+    showToast('Generating PDF... Please wait.');
 
-    const fmtForPdf = ts => {
-      const d = new Date(ts);
-      if (isNaN(d)) return esc(ts);
-      return d.toLocaleString('th-TH', {
-        year:'numeric',
-        month:'2-digit',
-        day:'2-digit',
-        hour:'2-digit',
-        minute:'2-digit',
-        second:'2-digit',
-        hour12: false
-      });
+    const now = dayjs().format('D MMMM YYYY, HH:mm');
+    const rows = [...rowsToExport].reverse(); 
+
+    // 3. ปรับเปลี่ยนข้อความหัวเรื่องให้สอดคล้องกับการค้นหา
+    const reportTitleText = filterInput ? `Daily Data Report: ${filterInput}` : 'Historical Data Report';
+
+    const container = document.createElement('div');
+    container.style.padding = '20px';
+    container.style.fontFamily = "'DM Sans', sans-serif";
+    container.style.color = '#0f172a';
+
+    const reportHeader = `
+      <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #0284c7;">
+        <div>
+          <h1 style="font-size: 18px; font-weight: 700; margin: 0;">${reportTitleText}</h1>
+          <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">Air Quality Monitoring System</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 24px; margin-bottom: 18px; font-size: 11px; color: #64748b;">
+        <span>Export: ${now}</span>
+        <span>Total: ${rows.length} records</span>
+      </div>
+    `;
+
+    const rowsPerPage = 25; 
+    let tablesHtml = '';
+
+    for (let i = 0; i < rows.length; i += rowsPerPage) {
+      const chunk = rows.slice(i, i + rowsPerPage);
+      
+      const rowsHtml = chunk.map((r, index) => `
+        <tr style="background: ${(i + index) % 2 === 0 ? '#ffffff' : '#f8fafc'}; page-break-inside: avoid;">
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #64748b;">${escapeHTML(fmtTs(r['Timestamp']))}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600; font-size: 11px;">${(+r['PM2.5'] || 0).toFixed(1)}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600; font-size: 11px;">${(+r['PM10']  || 0).toFixed(1)}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600; font-size: 11px;">${(parseFloat(r['Temperature']) || 0).toFixed(1)}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600; font-size: 11px;">${(parseFloat(r['Humidity'])    || 0).toFixed(1)}</td>
+        </tr>`).join('');
+
+      const pageBreak = i > 0 ? '<div style="page-break-before: always; margin-top: 20px;"></div>' : '';
+
+      tablesHtml += `
+        ${pageBreak}
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead>
+            <tr style="background: #0284c7; color: #fff;">
+              <th style="padding: 10px 12px; font-size: 10px; text-transform: uppercase;">Timestamp</th>
+              <th style="padding: 10px 12px; font-size: 10px; text-transform: uppercase; text-align: right;">PM2.5</th>
+              <th style="padding: 10px 12px; font-size: 10px; text-transform: uppercase; text-align: right;">PM10</th>
+              <th style="padding: 10px 12px; font-size: 10px; text-transform: uppercase; text-align: right;">Temp (&deg;C)</th>
+              <th style="padding: 10px 12px; font-size: 10px; text-transform: uppercase; text-align: right;">Humidity (%)</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      `;
+    }
+
+    container.innerHTML = reportHeader + tablesHtml;
+
+    const opt = {
+      margin:       10,
+      filename:     filterInput ? `AirQuality_${filterInput.replace(/\//g, '-')}.pdf` : `AirQuality_All_${dayjs().format('YYYYMMDD_HHmm')}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['css', 'legacy'] }
     };
 
-    const rows = [...allData].reverse();
-    const rowsHtml = rows.map(r => `
-      <tr>
-        <td>${fmtForPdf(r['Timestamp'])}</td>
-        <td>${(+r['PM2.5'] || 0).toFixed(1)}</td>
-        <td>${(+r['PM10']  || 0).toFixed(1)}</td>
-        <td>${(parseFloat(r['Temperature']) || 0).toFixed(1)}</td>
-        <td>${(parseFloat(r['Humidity'])    || 0).toFixed(1)}</td>
-      </tr>`).join('');
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Historical Data - Air Quality</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap');
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'DM Sans', sans-serif; background: #fff; color: #0f172a; padding: 32px 40px; font-size: 11pt; }
-    .report-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #0284c7; }
-    .logo { width: 46px; height: 46px; background: linear-gradient(135deg,#0284c7,#7c3aed); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
-    .report-header h1 { font-size: 16pt; font-weight: 700; }
-    .report-header p  { font-size: 9pt; color: #64748b; margin-top: 2px; }
-    .meta { display: flex; gap: 24px; margin-bottom: 18px; font-size: 9pt; color: #64748b; }
-    table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
-    thead tr { background: #0284c7; color: #fff; }
-    thead th { padding: 9px 12px; text-align: left; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; }
-    thead th:not(:first-child) { text-align: right; }
-    tbody tr:nth-child(even) { background: #f8fafc; }
-    tbody td { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; }
-    tbody td:first-child { color: #64748b; font-size: 9pt; }
-    tbody td:not(:first-child) { font-weight: 600; text-align: right; }
-    .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; display: flex; justify-content: space-between; }
-    @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { padding: 20px 28px; } }
-  </style>
-</head>
-<body>
-  <div class="report-header">
-    <div class="logo" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="grad3" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0284c7"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
-    </linearGradient>
-  </defs>
-  <rect width="80" height="80" rx="22" fill="url(#grad3)"/>
-  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
-  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
-  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
-  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
-</svg></div>
-    <div><h1>Historical Data Report</h1><p>Air Quality Monitoring System</p></div>
-  </div>
-  <div class="meta">
-    <span>Export: ${now}</span>
-    <span>Total: ${rows.length} records</span>
-  </div>
-  <table>
-    <thead><tr><th>Timestamp</th><th>PM2.5 (&micro;g/m&sup3;)</th><th>PM10 (&micro;g/m&sup3;)</th><th>Temp (&deg;C)</th><th>Humidity (%)</th></tr></thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>
-  <div class="footer"><span>Air Quality Monitoring Dashboard</span><span>${now}</span></div>
-<script>window.onload=function(){window.print();}<\/script>
-</body></html>`;
-
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const win  = window.open(url, '_blank');
-    if (win) {
-      win.addEventListener('afterprint', () => URL.revokeObjectURL(url));
-    } else {
-      showToast('Please allow pop-ups in your browser first.');
-      URL.revokeObjectURL(url);
-    }
+    html2pdf().set(opt).from(container).save().then(() => {
+      showToast('PDF downloaded successfully.');
+    }).catch(err => {
+      showToast('Error generating PDF.');
+      console.error(err);
+    });
   }
 
   function downloadCSV() {
@@ -523,29 +557,93 @@
      AUTO-REFRESH TICK
   =================================================== */
   function resetCountdown() {
-    countdown = REFRESH_SECS;
+    if (!isPaused) {
+      countdown = currentRefreshSecs;
+    }
+  }
+
+  function changeRefreshInterval(val) {
+    const v = parseInt(val, 10);
+    if (v === -1) {
+      isPaused = true;
+      document.getElementById('countdownText').textContent = 'Paused';
+      document.getElementById('refreshFill').style.width = '0%';
+    } else {
+      isPaused = false;
+      currentRefreshSecs = v;
+      resetCountdown();
+    }
   }
 
   setInterval(() => {
-    // Pause the countdown during loading and resume when fresh data arrives.
-    if (isLoading) return;
+    if (isLoading || isPaused) return;
 
     countdown = Math.max(0, countdown - 1);
 
     if (countdown === 0) {
-      countdown = REFRESH_SECS;
+      countdown = currentRefreshSecs;
       if (document.getElementById('sheetsUrl').value.trim()) {
-        loadData();
+        loadData(); // โหลดข้อมูลใหม่เมื่อหมดเวลา
       }
     }
 
-    const pct  = (countdown / REFRESH_SECS) * 100;
+    const pct  = (countdown / currentRefreshSecs) * 100;
     const mins = Math.floor(countdown / 60);
     const secs = String(countdown % 60).padStart(2, '0');
 
     document.getElementById('refreshFill').style.width    = pct + '%';
     document.getElementById('countdownText').textContent  = `${mins}:${secs}`;
   }, 1000);
+
+  // ==========================================
+  // ระบบ Notification แจ้งเตือนฝุ่น
+  // ==========================================
+  // ==========================================
+  // ระบบ Notification แจ้งเตือนฝุ่น (อัปเดตใหม่เป็น Toggle)
+  // ==========================================
+  function toggleNotifications() {
+    const cb = document.getElementById('notifToggleCb');
+    
+    // ถ้าผู้ใช้กด "เปิด"
+    if (cb.checked) {
+      if (!("Notification" in window)) {
+        showToast("เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน (Notifications)");
+        cb.checked = false; // เด้งสวิตช์กลับไปสีแดง
+        return;
+      }
+      
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          notificationsEnabled = true;
+          showToast("🟢 เปิดระบบแจ้งเตือนสำเร็จ!");
+        } else {
+          showToast("🔴 คุณปฏิเสธการแจ้งเตือน กรุณาอนุญาตในการตั้งค่าเบราว์เซอร์");
+          cb.checked = false; // เด้งสวิตช์กลับถ้าไม่อนุญาต
+        }
+      });
+    } 
+    // ถ้าผู้ใช้กด "ปิด"
+    else {
+      notificationsEnabled = false;
+      showToast("🔴 ปิดระบบแจ้งเตือนแล้ว");
+    }
+  }
+
+  function checkAirQualityAlert(lastRow) {
+    if (!notificationsEnabled || !lastRow) return;
+    
+    const pm25 = parseFloat(lastRow['PM2.5']) || 0;
+    const ts = lastRow['Timestamp'];
+
+    // แจ้งเตือนเมื่อฝุ่นเกิน 100 และต้องยังไม่เคยเตือนเวลานี้
+    if (pm25 > 100 && ts !== lastAlertTimestamp) {
+      lastAlertTimestamp = ts;
+      new Notification("⚠️ แจ้งเตือนมลพิษทางอากาศ!", {
+        body: `ค่า PM2.5 ปัจจุบันพุ่งสูงถึง ${pm25.toFixed(1)} µg/m³ (ระดับอันตราย) โปรดสวมหน้ากากอนามัย N95`,
+        icon: 'https://cdn-icons-png.flaticon.com/512/3209/3209935.png' // ไอคอนหน้ากาก
+      });
+    }
+  }
 
   /* ===================================================
      HELPERS
@@ -598,9 +696,20 @@
   function fmtTs(ts, short = false) {
     if (!ts) return '--';
     const d = parseTimestamp(ts);
-    if (!d) return String(ts);
-    if (short) return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-    return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
+    if (!d) return escapeHTML(String(ts));
+    
+    // ใช้ dayjs ในการจัดรูปแบบวันที่แทน toLocaleString เพื่อความสม่ำเสมอ
+    if (short) {
+      return dayjs(d).format('HH:mm'); // แสดงแค่เวลา เช่น 18:00
+    }
+    
+    // แสดงวันที่เต็มแบบ ค.ศ. (เช่น 09/03/2026 18:00)
+    return dayjs(d).format('DD/MM/YYYY HH:mm'); 
+    
+    /* หมายเหตุ: ถ้าอยากให้แสดงผลเป็นปี พ.ศ. แบบเต็ม (เช่น 09/03/2569 18:00)
+      ให้เปลี่ยนบรรทัดบนเป็น:
+      return dayjs(d).add(543, 'year').format('DD/MM/YYYY HH:mm');
+    */
   }
 
   function showToast(msg) {
@@ -611,6 +720,15 @@
     el._timer = setTimeout(() => el.classList.remove('show'), 3800);
   }
 
+  function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
   /* ===================================================
      QR CODE
@@ -626,6 +744,8 @@
     const modal   = document.getElementById('qrModal');
     const wrap    = document.getElementById('qrCanvas');
     const urlText = document.getElementById('qrUrlText');
+
+    document.body.style.overflow = 'hidden';
 
     urlText.textContent = DASHBOARD_URL;
     wrap.innerHTML = '';
@@ -721,6 +841,9 @@
     const modal = document.getElementById('qrModal');
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
+
+    document.body.style.overflow = '';
+
     _qrInstance = null;
     if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
       lastFocusedElement.focus();
@@ -729,6 +852,53 @@
 
   // Close the QR modal with Escape.
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQR(); });
+
+  /* ===================================================
+     EXPORT PDF MODAL
+  =================================================== */
+  let pdfDatePicker = null;
+
+  function openExportModal() {
+    const modal = document.getElementById('exportModal');
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+
+    // 🌟 ล็อคไม่ให้หน้าจอพื้นหลังเลื่อนได้
+    document.body.style.overflow = 'hidden';
+
+    // เรียกใช้ flatpickr สำหรับช่องเลือกวันที่ใน Modal
+    if (!pdfDatePicker && global.flatpickr) {
+      pdfDatePicker = global.flatpickr('#pdfDateFilter', {
+        dateFormat: 'd/m/Y',
+        locale: global.flatpickr.l10ns.th || 'default',
+        disableMobile: true,
+        allowInput: false,
+        clickOpens: true
+      });
+    }
+
+    // ซิงค์วันที่จากตารางหลักมาใส่ให้เป็นค่าเริ่มต้น
+    const currentTableFilter = document.getElementById('dateFilter').value;
+    if (pdfDatePicker) {
+      pdfDatePicker.setDate(currentTableFilter);
+    } else {
+      document.getElementById('pdfDateFilter').value = currentTableFilter;
+    }
+  }
+
+  function closeExportModal() {
+    const modal = document.getElementById('exportModal');
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+
+    // 🌟 ปลดล็อคให้หน้าจอพื้นหลังกลับมาเลื่อนได้ตามปกติ
+    document.body.style.overflow = '';
+  }
+
+  // ปิด Modal เมื่อกดปุ่ม Escape (ใส่เพิ่มต่อจาก EventListener ของ QR Modal ได้เลย)
+  document.addEventListener('keydown', e => { 
+    if (e.key === 'Escape') { closeQR(); closeExportModal(); } 
+  });
 
   /* ===================================================
      STARTUP & SETTINGS
@@ -802,26 +972,36 @@
   global.AirQualityDashboard = {
     bootstrap,
     loadData,
-    exportPDF,
+    confirmExportPDF,
     downloadCSV,
     filterByDate,
     clearDateFilter,
     saveAndLoad,
     closeSettings,
-    sortTable
+    openExportModal,
+    closeExportModal,
+    changePage,
+    changeRefreshInterval,
+    toggleNotifications,
+    sortTable,
   };
 
   // Maintain backward compatibility with existing inline handlers (if any)
-  global.loadData      = loadData;
-  global.exportPDF     = exportPDF;
-  global.downloadCSV   = downloadCSV;
-  global.filterByDate  = filterByDate;
-  global.clearDateFilter = clearDateFilter;
-  global.saveAndLoad   = saveAndLoad;
-  global.closeSettings = closeSettings;
-  global.sortTable     = sortTable;
-  global.openQR        = openQR;
-  global.closeQR       = closeQR;
+  global.loadData         = loadData;
+  global.confirmExportPDF = confirmExportPDF;
+  global.openExportModal  = openExportModal;  // <--- เพิ่มบรรทัดนี้
+  global.closeExportModal = closeExportModal; // <--- เพิ่มบรรทัดนี้
+  global.downloadCSV      = downloadCSV;
+  global.filterByDate     = filterByDate;
+  global.clearDateFilter  = clearDateFilter;
+  global.saveAndLoad      = saveAndLoad;
+  global.closeSettings    = closeSettings;
+  global.sortTable        = sortTable;
+  global.openQR           = openQR;
+  global.closeQR          = closeQR;
+  global.changePage       = changePage;
+  global.changeRefreshInterval = changeRefreshInterval;
+  global.toggleNotifications = toggleNotifications;
 
   // Kick off app once DOM is ready
   if (document.readyState === 'loading') {
