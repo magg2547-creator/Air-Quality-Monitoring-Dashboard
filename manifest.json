@@ -1,45 +1,27 @@
 {
-  "name": "Air Quality Monitor",
-  "short_name": "AirQuality",
-  "description": "Real-time PM2.5, PM10, Temperature & Humidity monitoring dashboard",
-  "id": "./index.html",
+  "name": "Air Quality Monitoring Dashboard",
+  "short_name": "Air Quality",
+  "description": "Real-time PM2.5, PM10, Temperature & Humidity monitoring",
   "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone"
-  ],
   "orientation": "any",
   "background_color": "#f0f4f8",
   "theme_color": "#0284c7",
   "lang": "th",
-  "dir": "ltr",
-  "prefer_related_applications": false,
-  "categories": [
-    "utilities",
-    "health"
-  ],
-  "shortcuts": [],
-  "screenshots": [],
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='48' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230284c7'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M67 125 C67 125 48 86 86 58 C125 29 144 67 125 91 C111 111 82 106 67 125Z' fill='white' fill-opacity='.95'/%3E%3Cpath d='M67 125 C77 106 96 91 115 72' stroke='%230284c7' stroke-width='5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230284c7'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M67 125C67 125 48 86 86 58 124 29 144 67 125 91 111 111 82 106 67 125Z' fill='white' fill-opacity='.95'/%3E%3Cpath d='M67 125C77 106 96 91 115 72' stroke='%230284c7' stroke-width='5' stroke-linecap='round' fill='none'/%3E%3Cpath d='M132 82C139 82 146 75 146 67' stroke='white' stroke-width='6' stroke-linecap='round' fill='none' opacity='.85'/%3E%3Cpath d='M132 96C147 96 158 87 158 72' stroke='white' stroke-width='6' stroke-linecap='round' fill='none' opacity='.6'/%3E%3Cpath d='M132 110C151 110 166 98 166 77' stroke='white' stroke-width='6' stroke-linecap='round' fill='none' opacity='.35'/%3E%3C/svg%3E",
       "sizes": "192x192",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='48' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230284c7'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M67 125 C67 125 48 86 86 58 C125 29 144 67 125 91 C111 111 82 106 67 125Z' fill='white' fill-opacity='.95'/%3E%3Cpath d='M67 125 C77 106 96 91 115 72' stroke='%230284c7' stroke-width='5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    },
-    {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='120' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230284c7'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M179 334 C179 334 128 230 230 154 C333 78 384 179 333 243 C296 296 218 283 179 334Z' fill='white' fill-opacity='.95'/%3E%3Cpath d='M179 334 C205 283 256 243 307 192' stroke='%230284c7' stroke-width='13' stroke-linecap='round' fill='none'/%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='110' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230284c7'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M179 333C179 333 128 230 230 154 332 78 384 179 333 243 296 296 219 283 179 333Z' fill='white' fill-opacity='.95'/%3E%3Cpath d='M179 333C205 282 256 243 307 192' stroke='%230284c7' stroke-width='13' stroke-linecap='round' fill='none'/%3E%3Cpath d='M352 218C371 218 390 199 390 179' stroke='white' stroke-width='16' stroke-linecap='round' fill='none' opacity='.85'/%3E%3Cpath d='M352 256C392 256 422 231 422 192' stroke='white' stroke-width='16' stroke-linecap='round' fill='none' opacity='.6'/%3E%3Cpath d='M352 294C403 294 441 261 441 205' stroke='white' stroke-width='16' stroke-linecap='round' fill='none' opacity='.35'/%3E%3C/svg%3E",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["utilities", "productivity"],
+  "screenshots": []
 }
