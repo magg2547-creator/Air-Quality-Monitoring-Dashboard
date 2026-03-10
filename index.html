@@ -1,0 +1,3033 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0284c7"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Air Quality"/>
+  <title>Air Quality Monitoring Dashboard</title>
+  <meta name="description" content="Dashboard for monitoring PM2.5, PM10, temperature, and humidity with real-time charts, analytics, and historical data."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin/>
+
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    /* ===========================
+       CSS VARIABLES & RESET
+    =========================== */
+    :root {
+      --bg:         #f0f4f8;
+      --surface:    #ffffff;
+      --surface2:   #f1f5f9;
+      --border:     rgba(0,0,0,0.08);
+      --text:       #0f172a;
+      --muted:      #64748b;
+      --accent:     #0284c7;
+      --accent2:    #7c3aed;
+
+      --good:       #78be21;
+      --moderate:   #f5c400;
+      --unhealthy:  #f07d00;
+      --hazardous:  #dc2626;
+
+      --pm25-color: #0284c7;
+      --pm10-color: #7c3aed;
+      --temp-color: #ea580c;
+      --hum-color:  #16a34a;
+
+      --radius:     14px;
+      --radius-lg:  20px;
+      --shadow:     0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg:  0 8px 32px rgba(0,0,0,0.12);
+      --font-mono:  'Space Mono', monospace;
+      --font-body:  'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: 100dvh; /* dynamic viewport for mobile browsers */
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(2,132,199,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(124,58,237,0.05) 0%, transparent 60%);
+      /* safe-area support for iPhone notch */
+      padding-top:   env(safe-area-inset-top);
+      padding-left:  env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* ===========================
+       SCROLLBAR
+    =========================== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 99px; }
+
+    /* ===========================
+       LAYOUT WRAPPERS
+    =========================== */
+    .wrapper {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 24px 48px;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      transform: translateY(-160%);
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 0.82rem;
+      text-decoration: none;
+      z-index: 100001;
+      transition: transform .18s ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 3px solid rgba(14, 165, 233, 0.35);
+      outline-offset: 3px;
+    }
+
+    /* ===========================
+       HEADER
+    =========================== */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 28px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 16px; }
+
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 16px rgba(2,132,199,0.3);
+      flex-shrink: 0;
+    }
+
+    .header-title h1 {
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .header-title p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 2px;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .header-meta-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: -8px 0 24px;
+    }
+
+    .meta-chip {
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+      backdrop-filter: blur(8px);
+      min-width: 0;
+    }
+
+    .meta-chip-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .meta-chip-value {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Pill badge */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 6px 14px;
+      border-radius: 99px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .pill .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.35; }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      font-weight: 600;
+      line-height: 1.2;
+      cursor: pointer;
+      border: 1px solid transparent;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.78);
+      transition: all .18s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #0ea5e9, #0284c7);
+      color: #fff;
+      border-color: rgba(2,132,199,0.28);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 2px rgba(2,132,199,0.18);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 4px 12px rgba(2,132,199,0.18); }
+
+    .btn-outline {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
+    }
+    .btn-outline:hover { border-color: #94a3b8; color: #0f172a; background: #f8fafc; }
+    .config-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .config-panel label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .config-panel input {
+      flex: 1;
+      min-width: 260px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .config-panel input:focus { border-color: var(--accent); }
+    .config-panel input::placeholder { color: var(--muted); }
+
+    /* ===========================
+       INSTRUCTIONS CALLOUT
+    =========================== */
+    .callout {
+      background: rgba(0,229,255,0.04);
+      border: 1px solid rgba(0,229,255,0.15);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      margin-bottom: 28px;
+      font-size: 0.8rem;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+    .callout strong { color: var(--accent); }
+    .callout code {
+      display: block;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 8px 0;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: #a5f3fc;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ===========================
+       SECTION TITLE
+    =========================== */
+    .section-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      line-height: 1;
+    }
+
+    .status-panel > .section-title,
+    .gauge-panel > .section-title,
+    .system-card > .section-title {
+      margin-bottom: 2px;
+      width: 100%;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ===========================
+       SENSOR CARDS
+    =========================== */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .sensor-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 20px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .25s, box-shadow .25s;
+      cursor: default;
+    }
+    .sensor-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+    .sensor-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    .card-pm25::before  { background: var(--pm25-color); box-shadow: 0 0 8px rgba(2,132,199,0.4); }
+    .card-pm10::before  { background: var(--pm10-color); box-shadow: 0 0 8px rgba(124,58,237,0.4); }
+    .card-temp::before  { background: var(--temp-color); box-shadow: 0 0 8px rgba(234,88,12,0.4); }
+    .card-hum::before   { background: var(--hum-color);  box-shadow: 0 0 8px rgba(22,163,74,0.4);  }
+
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      margin-bottom: 14px;
+    }
+    .card-pm25 .card-icon  { background: rgba(2,132,199,0.1);   }
+    .card-pm10 .card-icon  { background: rgba(124,58,237,0.1);  }
+    .card-temp .card-icon  { background: rgba(234,88,12,0.1);   }
+    .card-hum  .card-icon  { background: rgba(22,163,74,0.1);   }
+
+    .card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .card-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .card-value {
+      font-family: var(--font-mono);
+      font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+      font-weight: 700;
+      line-height: 1;
+      transition: color .4s;
+    }
+    .card-pm25 .card-value { color: var(--pm25-color); }
+    .card-pm10 .card-value { color: var(--pm10-color); }
+    .card-temp .card-value { color: var(--temp-color); }
+    .card-hum  .card-value { color: var(--hum-color);  }
+
+    .card-unit { font-size: 0.75rem; color: var(--muted); }
+
+    .card-delta {
+      margin-top: 10px;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    /* ===========================
+       STATUS + GAUGE ROW
+    =========================== */
+    .status-gauge-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 900px) { .status-gauge-row { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) { .status-gauge-row { grid-template-columns: 1fr; } }
+
+    /* Air Quality Status Panel */
+    .status-panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .status-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(120,190,33,0.22), rgba(245,196,0,0.18), rgba(220,38,38,0.2));
+      opacity: 0.8;
+    }
+
+    .aq-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 54px;
+      padding: 13px 18px;
+      border-radius: 18px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.62), 0 10px 24px rgba(15,23,42,0.06);
+      transition: all .35s ease;
+    }
+
+    .aq-status-badge .badge-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 5px rgba(255,255,255,0.58);
+    }
+
+    .status-good        { background: linear-gradient(180deg, rgba(120,190,33,.14), rgba(120,190,33,.1));  color: #4f8d0b; border: 1px solid rgba(120,190,33,.28); }
+    .status-moderate    { background: linear-gradient(180deg, rgba(245,196,0,.16), rgba(245,196,0,.1));   color: #a88200; border: 1px solid rgba(245,196,0,.3); }
+    .status-unhealthy   { background: linear-gradient(180deg, rgba(240,125,0,.16), rgba(240,125,0,.1));   color: #b95a00; border: 1px solid rgba(240,125,0,.3); }
+    .status-hazardous   { background: linear-gradient(180deg, rgba(220,38,38,.16), rgba(220,38,38,.1));   color: #b91c1c; border: 1px solid rgba(220,38,38,.3); }
+    .status-vunhealthy  { background: linear-gradient(180deg, rgba(139,63,168,.16), rgba(139,63,168,.1));  color: #6b2d8b; border: 1px solid rgba(139,63,168,.3); }
+    .status-maroon      { background: linear-gradient(180deg, rgba(125,0,35,.16), rgba(125,0,35,.1));    color: #7d0023; border: 1px solid rgba(125,0,35,.3); }
+
+    .status-scale-wrap {
+      padding: 12px 12px 10px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(241,245,249,0.96));
+      border: 1px solid rgba(148,163,184,0.14);
+    }
+
+    .status-scale {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+      align-items: center;
+    }
+
+    .scale-item {
+      height: 7px;
+      border-radius: 999px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    .scale-item:nth-child(1) { background: linear-gradient(90deg, #78be21, #84cc16); }
+    .scale-item:nth-child(2) { background: linear-gradient(90deg, #f5c400, #facc15); }
+    .scale-item:nth-child(3) { background: linear-gradient(90deg, #f07d00, #fb923c); }
+    .scale-item:nth-child(4) { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .scale-item:nth-child(5) { background: #8b3fa8; }
+    .scale-item:nth-child(6) { background: #7d0023; }
+
+    .scale-labels {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 0.64rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    .scale-labels span {
+      display: block;
+      line-height: 1.45;
+      white-space: nowrap;
+    }
+    .scale-labels span:nth-child(2),
+    .scale-labels span:nth-child(3) { text-align: center; }
+    .scale-labels span:nth-child(4) { text-align: right; }
+
+    @media (max-width: 640px) {
+      .aq-status-badge {
+        font-size: 0.9rem;
+        padding: 12px 14px;
+      }
+
+      .scale-labels {
+        font-size: 0.58rem;
+        gap: 6px;
+      }
+    }
+
+    /* Gauge Panel */
+    .gauge-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .gauge-wrap { position: relative; width: 200px; height: 110px; }
+    .gauge-svg  { width: 100%; overflow: visible; }
+    .gauge-track { fill: none; stroke: var(--surface2); stroke-width: 13; stroke-linecap: round; }
+    .gauge-fill  {
+      fill: none; stroke-width: 13; stroke-linecap: round;
+      stroke: url(#gaugeGrad);
+      transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
+    }
+
+    .gauge-center-text {
+      position: absolute;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+    .gauge-number { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 700; color: var(--pm25-color); line-height: 1; }    .gauge-unit   { font-size: 0.65rem; color: var(--muted); }
+
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      width: 200px;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ===========================
+       CHARTS
+    =========================== */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 20px 16px;
+    }
+
+    .chart-card-title {
+      font-size: 0.69rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1;
+    }
+    .chart-card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .chart-container { position: relative; height: 190px; }
+
+    /* ===========================
+       ANALYTICS
+    =========================== */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .analytics-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      text-align: center;
+      transition: transform .2s;
+    }
+    .analytics-card:hover { transform: translateY(-2px); }
+
+    .analytics-label {
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .analytics-value { font-family: var(--font-mono); font-size: 1.45rem; font-weight: 700; color: var(--accent); }
+    .analytics-sub   { font-size: 0.62rem; color: var(--muted); margin-top: 4px; }
+
+    /* ===========================
+       BOTTOM ROW
+    =========================== */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 290px;
+      gap: 14px;
+    }
+    @media (max-width: 900px) { .bottom-row { grid-template-columns: 1fr; } }
+
+    /* Table */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .table-scroll {
+      max-height: 640px;
+      overflow: auto;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.94));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+    }
+
+    .table-scroll table {
+      min-width: 100%;
+    }
+
+    .table-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .table-toolbar-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .table-filter-shell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 6px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: linear-gradient(180deg,#ffffff,#f8fafc);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    .table-filter-field {
+      position: relative;
+      flex: 1;
+      min-width: 148px;
+    }
+
+    .table-filter-summary {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+
+    thead th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+      cursor: pointer;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      user-select: none;
+      transition: color .15s;
+    }
+    thead th:hover { color: var(--accent); }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody td {
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+    }
+
+    td.ts     { color: var(--muted); font-size: 0.68rem; }
+    td.pm25v  { color: var(--pm25-color); }
+    td.pm10v  { color: var(--pm10-color); }
+    td.tempv  { color: var(--temp-color); }
+    td.humv   { color: var(--hum-color);  }
+
+    /* System Status */
+    .system-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-self: start;
+    }
+
+    .sys-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 13px;
+      background: var(--surface2);
+      border-radius: 10px;
+      gap: 8px;
+    }
+
+    .sys-label { font-size: 0.7rem; color: var(--muted); display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    .sys-val   { font-family: var(--font-mono); font-size: 0.73rem; color: var(--text); font-weight: 600; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .sys-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .sys-dot.live { background: var(--good); box-shadow: 0 0 6px var(--good); animation: pulse 2s infinite; }
+    .sys-dot.err  { background: var(--hazardous); }
+
+    /* QR modal */
+    #qrModal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(10px);
+      z-index: 10000;
+    }
+    #qrModal.show { display: flex; }
+
+    .qr-card {
+      width: min(100%, 380px);
+      background: #ffffff;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+      text-align: center;
+    }
+
+    .qr-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    #qrCanvas {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+      margin-bottom: 14px;
+    }
+
+    .qr-url {
+      font-size: 0.72rem;
+      line-height: 1.6;
+      color: var(--muted);
+      word-break: break-all;
+      background: var(--surface2);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+
+    .qr-close {
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+    .qr-close:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
+
+    /* Refresh bar */
+    .refresh-wrap {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 12px 13px;
+      margin-top: 4px;
+    }
+    .refresh-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.66rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .refresh-track { background: var(--bg); border-radius: 99px; height: 4px; overflow: hidden; }
+    .refresh-fill  {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      transition: width 1s linear;
+    }
+
+    /* ===========================
+       RESPONSIVE TUNING
+    =========================== */
+    @media (max-width: 900px) {
+      .wrapper { padding: 0 18px 40px; }
+      header { padding: 22px 0 26px; }
+      .header-meta-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .charts-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .wrapper { padding: 0 14px 32px; }
+      header { gap: 12px; }
+      .header-left { width: 100%; }
+      .header-right { width: 100%; }
+      .header-meta-strip { grid-template-columns: 1fr; margin: -6px 0 18px; }
+      .config-panel { padding: 16px; }
+      .config-panel input { min-width: 180px; width: 100%; }
+      .btn { width: 100%; justify-content: center; }
+      .cards-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-container { height: 170px; }
+      .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .table-card { padding: 16px; }
+      .table-header-row { flex-direction: column; align-items: stretch; }
+      .table-filter-shell { width: 100%; }
+      .table-filter-field { min-width: 120px; }
+      .table-filter-summary { width: 100%; text-align: left; }
+      .gauge-wrap { width: 170px; height: 98px; }
+      .gauge-labels { width: 170px; }
+      #qrModal { padding: 16px; }
+      .qr-card { padding: 20px; border-radius: 20px; }
+    }
+
+    @media (max-width: 420px) {
+      .wrapper { padding: 0 12px 28px; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .analytics-grid { grid-template-columns: 1fr; }
+      .chart-container { height: 150px; }
+      .gauge-wrap { width: 150px; height: 90px; }
+      .gauge-labels { width: 150px; font-size: 0.58rem; }
+      thead th, tbody td { padding: 8px 10px; }
+    }
+    /* ===========================
+       LOADING STATE
+    =========================== */
+    .loading-overlay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-align: center;
+      min-height: 180px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--surface2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===========================
+       TOAST
+    =========================== */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #f1f5f9;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all .3s;
+      z-index: 9999;
+      max-width: 320px;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ===========================
+       RESPONSIVE
+    =========================== */
+    /* ===========================
+       RESPONSIVE - Tablet (iPad landscape/portrait)
+    =========================== */
+    @media (max-width: 1024px) {
+      .header-meta-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .cards-grid     { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid    { grid-template-columns: repeat(2, 1fr); }
+      .analytics-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    /* ===========================
+       RESPONSIVE - Mobile large (iPhone Plus, Android)
+    =========================== */
+    @media (max-width: 768px) {
+      /* Prevent iOS auto-zoom on text and date inputs */
+      input[type="date"], 
+      input[type="text"], 
+      .config-panel input {
+        font-size: 16px !important; 
+      }
+
+      .config-panel input {
+        min-width: 0;
+        width: 100%;
+      }
+
+      .table-card {
+        padding: 16px 12px;
+      }
+
+      #dateFilter {
+        width: 100%;
+        min-width: unset;
+        appearance: none;
+      }
+      #dateFilter::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; inset: 0; width: 100%; cursor: pointer; }
+      #dateFilter::-webkit-datetime-edit { padding-right: 4px; }
+    }
+
+    /* ===========================
+       RESPONSIVE - Mobile small
+    =========================== */
+    @media (max-width: 640px) {
+      .wrapper { padding: 0 16px 36px; }
+
+      .header-meta-strip {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .cards-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-card { padding: 16px; }
+
+      .gauge-wrap { width: 180px; height: 100px; }
+      .gauge-labels { width: 180px; }
+    }
+
+    .sensor-card,
+    .status-panel,
+    .gauge-panel,
+    .chart-card,
+    .analytics-card,
+    .table-card,
+    .system-card {
+      box-shadow: 0 1px 0 rgba(255,255,255,0.55);
+    }
+    .flatpickr-calendar.arrowTop::before,
+    .flatpickr-calendar.arrowTop::after { display: none; }
+    .flatpickr-months {
+      background: #ffffff;
+      border-bottom: 1px solid #e9eef5;
+      padding: 10px 10px 8px;
+    }
+    .flatpickr-current-month {
+      left: 40px;
+      right: 40px;
+      height: 28px;
+      padding-top: 1px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: left;
+      letter-spacing: 0;
+    }
+    .flatpickr-current-month .flatpickr-monthDropdown-months,
+    .flatpickr-current-month input.cur-year {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 0.95rem;
+    }
+    .flatpickr-current-month .flatpickr-monthDropdown-months { padding: 0; }
+    .numInputWrapper:hover { background: transparent; }
+    .flatpickr-weekdays {
+      background: #ffffff;
+      padding: 4px 10px 0;
+    }
+    span.flatpickr-weekday {
+      color: #475569;
+      font-weight: 700;
+      font-size: 0.69rem;
+      letter-spacing: 0.01em;
+    }
+    .flatpickr-innerContainer,
+    .flatpickr-rContainer,
+    .flatpickr-days,
+    .dayContainer {
+      width: 100%;
+      min-width: 100%;
+      max-width: 100%;
+    }
+    .flatpickr-days {
+      padding: 6px 10px 10px;
+      background: #ffffff;
+    }
+    .dayContainer {
+      gap: 2px;
+      justify-content: center;
+    }
+    .flatpickr-day {
+      max-width: 30px;
+      height: 30px;
+      line-height: 30px;
+      margin: 1px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      color: #0f172a;
+      font-weight: 500;
+      font-size: 0.83rem;
+      transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .flatpickr-day:hover {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    .flatpickr-day.selected,
+    .flatpickr-day.startRange,
+    .flatpickr-day.endRange,
+    .flatpickr-day.selected:hover,
+    .flatpickr-day.startRange:hover,
+    .flatpickr-day.endRange:hover {
+      background: #0f6cbd;
+      border-color: #0f6cbd;
+      color: #ffffff;
+      box-shadow: none;
+    }
+    .flatpickr-day.today {
+      border-color: #93c5fd;
+      color: #0f172a;
+      background: #f8fbff;
+    }
+    .flatpickr-day.flatpickr-disabled,
+    .flatpickr-day.prevMonthDay,
+    .flatpickr-day.nextMonthDay {
+      color: #94a3b8;
+    }
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+      top: 8px;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 8px;
+      color: #475569;
+      fill: #475569;
+      background: transparent;
+      box-shadow: none;
+    }
+    .flatpickr-months .flatpickr-prev-month:hover,
+    .flatpickr-months .flatpickr-next-month:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      fill: #0f172a;
+      box-shadow: inset 0 0 0 1px #e2e8f0;
+    }
+  #splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f0f4f8;
+  transition: opacity .6s ease, visibility .6s ease;
+}
+#splash.hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Animated background blobs */
+.splash-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.splash-bg::before,
+.splash-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: blobFloat 6s ease-in-out infinite alternate;
+}
+.splash-bg::before {
+  width: 500px; height: 500px;
+  background: rgba(2,132,199,0.12);
+  top: -100px; left: -100px;
+}
+.splash-bg::after {
+  width: 400px; height: 400px;
+  background: rgba(124,58,237,0.10);
+  bottom: -80px; right: -80px;
+  animation-delay: -3s;
+}
+@keyframes blobFloat {
+  from { transform: translate(0,0) scale(1); }
+  to   { transform: translate(40px,30px) scale(1.1); }
+}
+
+.splash-content {
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.splash-logo {
+  width: 80px; height: 80px;
+  background: linear-gradient(135deg, #0284c7, #7c3aed);
+  border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 38px;
+  box-shadow: 0 8px 32px rgba(2,132,199,0.35);
+  animation: logoPop .6s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes logoPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.splash-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(1.4rem, 6vw, 2.4rem);
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  animation: fadeUp .5s .15s both;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.splash-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(0.65rem, 2.5vw, 0.82rem);
+  color: #64748b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  animation: fadeUp .5s .25s both;
+  padding: 0 24px;
+  text-align: center;
+}
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.splash-bar-wrap {
+  width: 220px;
+  height: 4px;
+  background: rgba(2,132,199,0.12);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 8px;
+  animation: fadeUp .5s .35s both;
+}
+.splash-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #0284c7, #7c3aed);
+  border-radius: 99px;
+  transition: width .4s ease;
+}
+
+.splash-status {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  animation: fadeUp .5s .4s both;
+}
+
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    #logoTrigger { cursor: pointer; }
+    @keyframes barShimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+    #topBar.running { animation: barShimmer 1.2s linear infinite; }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<noscript><div style="margin:16px 24px;padding:12px 14px;border:1px solid rgba(220,38,38,0.22);border-radius:12px;background:#fff1f2;color:#991b1b;font-size:0.9rem">This dashboard requires JavaScript to load live data and interactive charts.</div></noscript>
+
+<div id="topBar" aria-hidden="true" style="
+  position:fixed;top:0;left:0;width:0%;height:3px;z-index:99999;
+  background:linear-gradient(90deg,#0284c7,#7c3aed,#0284c7);
+  background-size:200% 100%;
+  border-radius:0 2px 2px 0;
+  transition:width .3s ease,opacity .4s ease;
+  opacity:0;
+"></div>
+
+<div id="splash">
+  <div class="splash-bg"></div>
+  <div class="splash-content">
+    <div class="splash-logo" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="22" fill="url(#grad1)"/>
+  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+</svg></div>
+    <div class="splash-title">Air Quality<br>Monitoring</div>
+    <div class="splash-sub">Real-time Environmental Monitoring System</div>
+    <div class="splash-bar-wrap">
+      <div class="splash-bar" id="splashBar"></div>
+    </div>
+    <div class="splash-status" id="splashStatus">Connecting...</div>
+  </div>
+</div>
+
+
+
+<main id="main-content" class="wrapper">
+
+  <header>
+    <div class="header-left">
+      <div class="logo-icon" id="logoTrigger" role="button" tabindex="0" aria-label="Open settings panel" title="Open settings panel" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="48" height="48" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="22" fill="url(#grad2)"/>
+  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+</svg></div>
+      <div class="header-title">
+        <h1>Air Quality Monitoring Dashboard</h1>
+        <p>Real-time Environmental Monitoring System</p>
+      </div>
+      <div class="pill" role="status" aria-live="polite">
+        <span class="dot" id="headerDot"></span>
+        <span id="headerStatus">Offline</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button type="button" class="btn btn-outline btn-qr" onclick="openQR()" title="QR Code" aria-label="Open QR code modal">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="3" y="3" width="2" height="2" fill="currentColor"/>
+          <rect x="11" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="13" y="3" width="2" height="2" fill="currentColor"/>
+          <rect x="1" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="3" y="13" width="2" height="2" fill="currentColor"/>
+          <rect x="11" y="11" width="2" height="2" fill="currentColor"/>
+          <rect x="14" y="11" width="2" height="2" fill="currentColor"/>
+          <rect x="11" y="14" width="2" height="2" fill="currentColor"/>
+          <rect x="14" y="14" width="2" height="2" fill="currentColor"/>
+        </svg>
+        <span class="btn-label">QR</span>
+      </button>
+      <button type="button" class="btn btn-outline btn-refresh" onclick="loadData()" aria-label="Reload dashboard data">Reload <span class="btn-label">Data</span></button>
+      <button type="button" class="btn btn-outline btn-csv" onclick="downloadCSV()" aria-label="Download CSV file">Download <span class="btn-label">CSV</span></button>
+      <button type="button" class="btn btn-primary btn-pdf" onclick="exportPDF()" aria-label="Export report as PDF">Export <span class="btn-label">PDF</span></button>
+    </div>
+  </header>
+
+  <div class="header-meta-strip">
+    <div class="meta-chip">
+      <div>
+        <div class="meta-chip-label">Last Sync</div>
+        <div class="meta-chip-value" id="headerLastSync" aria-live="polite">Waiting for first load</div>
+      </div>
+    </div>
+    <div class="meta-chip">
+      <div>
+        <div class="meta-chip-label">Data Window</div>
+        <div class="meta-chip-value" id="headerRange" aria-live="polite">Latest reading ready</div>
+      </div>
+    </div>
+    <div class="meta-chip">
+      <div>
+        <div class="meta-chip-label">Records</div>
+        <div class="meta-chip-value" id="headerRecordCount" aria-live="polite">No data loaded</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="settingsPanel" aria-label="Dashboard settings" style="
+    display:none;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:var(--radius-lg);
+    padding:20px 24px;
+    margin-bottom:20px;
+    box-shadow:var(--shadow-lg);
+    animation: fadeIn .2s ease;
+  ">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">Settings</span>
+      <button type="button" aria-label="Close settings" onclick="closeSettings()" style="width:32px;height:32px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;cursor:pointer;font-size:0.95rem;color:#475569;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,0.82)">x</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label for="sheetsUrl" style="font-size:0.78rem;color:var(--muted);white-space:nowrap">Apps Script URL</label>
+      <input type="url" id="sheetsUrl" inputmode="url" autocomplete="off" spellcheck="false" aria-describedby="settingsHelp" style="
+        flex:1;min-width:260px;
+        background:var(--surface2);
+        border:1px solid var(--border);
+        border-radius:8px;
+        padding:9px 14px;
+        font-family:var(--font-mono);
+        font-size:0.74rem;
+        color:var(--text);
+        outline:none;
+      " placeholder="https://script.google.com/macros/s/.../exec"/>
+      <span id="settingsHelp" class="sr-only">Paste a deployed Google Apps Script web app URL, then activate Save and Load.</span>
+      <button type="button" class="btn btn-primary" onclick="saveAndLoad()">Save & Load</button>
+    </div>
+  </section>
+
+
+
+
+  <h2 class="section-title" id="current-readings-title">Current Readings</h2>
+  <div class="cards-grid">
+    <div class="sensor-card card-pm25">
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:translateY(0.5px)"><path d="M4 14c2.5-4 5.5-6 9-6 3 0 5.2 1.3 7 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 18c2-2.8 4.3-4.2 7-4.2 2.3 0 4.3.9 6 2.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity="0.75"/><circle cx="8" cy="9" r="1.4" fill="currentColor"/><circle cx="13" cy="6.5" r="1.2" fill="currentColor" opacity="0.8"/></svg></div>
+      <div class="card-label">PM2.5</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-pm25">--</div>
+        <div class="card-unit">&micro;g/m&sup3;</div>
+      </div>
+      <div class="card-delta" id="delta-pm25">Awaiting data...</div>
+    </div>
+    <div class="sensor-card card-pm10">
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:scale(0.96)"><circle cx="8" cy="8" r="2.2" fill="currentColor"/><circle cx="15.5" cy="7" r="1.7" fill="currentColor" opacity="0.8"/><circle cx="12" cy="13" r="2.5" fill="currentColor" opacity="0.7"/><circle cx="17" cy="15.5" r="1.8" fill="currentColor" opacity="0.55"/><circle cx="6.5" cy="15.5" r="1.5" fill="currentColor" opacity="0.5"/></svg></div>
+      <div class="card-label">PM10</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-pm10">--</div>
+        <div class="card-unit">&micro;g/m&sup3;</div>
+      </div>
+      <div class="card-delta" id="delta-pm10">Awaiting data...</div>
+    </div>
+    <div class="sensor-card card-temp">
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:translateY(0.5px)"><path d="M10 5.5a2 2 0 1 1 4 0v7.1a4 4 0 1 1-4 0V5.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 9v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.7" fill="currentColor"/></svg></div>
+      <div class="card-label">Temperature</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-temp">--</div>
+        <div class="card-unit">&deg;C</div>
+      </div>
+      <div class="card-delta" id="delta-temp">Awaiting data...</div>
+    </div>
+    <div class="sensor-card card-hum">
+      <div class="card-icon" aria-hidden="true" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,0.55)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display:block;transform:translateY(0.5px)"><path d="M12 4.5c3.2 4.1 5 6.9 5 9.3A5 5 0 1 1 7 13.8c0-2.4 1.8-5.2 5-9.3Z" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 15.5c.7 1.1 1.6 1.6 2.8 1.6 1.2 0 2.1-.5 2.7-1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity="0.7"/></svg></div>
+      <div class="card-label">Humidity</div>
+      <div class="card-value-row">
+        <div class="card-value" id="val-hum">--</div>
+        <div class="card-unit">%</div>
+      </div>
+      <div class="card-delta" id="delta-hum">Awaiting data...</div>
+    </div>
+  </div>
+
+  <div class="status-gauge-row">
+
+    <div class="status-panel">
+      <div class="section-title">Air Quality Index</div>
+
+      <div id="aqBadge" class="aq-status-badge status-good">
+        <span class="badge-dot" id="aqDot" style="background:var(--muted)"></span>
+        <span id="aqText">Waiting for data...</span>
+      </div>
+
+      <div class="status-scale-wrap" aria-hidden="true">
+        <div class="status-scale">
+          <div class="scale-item"></div>
+          <div class="scale-item"></div>
+          <div class="scale-item"></div>
+          <div class="scale-item"></div>
+        </div>
+        <div class="scale-labels">
+          <span>0 Good</span>
+          <span>50 Moderate</span>
+          <span>100 Unhealthy</span>
+          <span>150+ Danger</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gauge-panel">
+      <div class="section-title">PM2.5 Gauge</div>
+      <div>
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 200 110">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#78be21"/>
+                <stop offset="35%"  stop-color="#f5c400"/>
+                <stop offset="65%"  stop-color="#f07d00"/>
+                <stop offset="100%" stop-color="#dc2626"/>
+              </linearGradient>
+            </defs>
+            <path id="gaugeTrack" class="gauge-track" d="M 15 105 A 85 85 0 0 1 185 105"/>
+            <path id="gaugeFill"  class="gauge-fill"  d="M 15 105 A 85 85 0 0 1 185 105"/>
+          </svg>
+          <div class="gauge-center-text">
+            <div class="gauge-number" id="gaugeNum">--</div>
+            <div class="gauge-unit">&micro;g/m&sup3;</div>
+          </div>
+        </div>
+        <div class="gauge-labels" style="width:200px">
+          <span>0</span>
+          <span style="position:relative;left:8px">75</span>
+          <span>150</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gauge-panel">
+      <div class="section-title">PM10 Gauge</div>
+      <div>
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 200 110">
+            <defs>
+              <linearGradient id="gaugeGrad10" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#78be21"/>
+                <stop offset="35%"  stop-color="#f5c400"/>
+                <stop offset="65%"  stop-color="#f07d00"/>
+                <stop offset="100%" stop-color="#dc2626"/>
+              </linearGradient>
+            </defs>
+            <path id="gaugeTrack10" class="gauge-track" d="M 15 105 A 85 85 0 0 1 185 105"/>
+            <path id="gaugeFill10"  class="gauge-fill"  d="M 15 105 A 85 85 0 0 1 185 105" style="stroke:url(#gaugeGrad10)"/>
+          </svg>
+          <div class="gauge-center-text">
+            <div class="gauge-number" id="gaugeNum10" style="color:var(--pm10-color)">--</div>
+            <div class="gauge-unit">&micro;g/m&sup3;</div>
+          </div>
+        </div>
+        <div class="gauge-labels" style="width:200px">
+          <span>0</span>
+          <span style="position:relative;left:8px">150</span>
+          <span>300</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-title" id="trend-analysis-title">Trend Analysis</h2>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <span class="dot" style="background:var(--pm25-color)"></span>
+        PM2.5 Over Time
+      </div>
+      <div class="chart-container"><canvas id="chartPm25"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <span class="dot" style="background:var(--pm10-color)"></span>
+        PM10 Over Time
+      </div>
+      <div class="chart-container"><canvas id="chartPm10"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <span class="dot" style="background:var(--temp-color)"></span>
+        <span class="dot" style="background:var(--hum-color)"></span>
+        Temperature &amp; Humidity
+      </div>
+      <div class="chart-container"><canvas id="chartTempHum"></canvas></div>
+    </div>
+  </div>
+
+  <h2 class="section-title" id="analytics-summary-title">Analytics Summary</h2>
+  <div class="analytics-grid">
+    <div class="analytics-card">
+      <div class="analytics-label">Avg PM2.5</div>
+      <div class="analytics-value" id="stat-avgPm25">--</div>
+      <div class="analytics-sub">&micro;g/m&sup3;</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Max PM2.5</div>
+      <div class="analytics-value" id="stat-maxPm25" style="color:var(--hazardous)">--</div>
+      <div class="analytics-sub">&micro;g/m&sup3;</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Min PM2.5</div>
+      <div class="analytics-value" id="stat-minPm25" style="color:var(--good)">--</div>
+      <div class="analytics-sub">&micro;g/m&sup3;</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Avg Temperature</div>
+      <div class="analytics-value" id="stat-avgTemp" style="color:var(--temp-color)">--</div>
+      <div class="analytics-sub">&deg;C</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Avg Humidity</div>
+      <div class="analytics-value" id="stat-avgHum" style="color:var(--hum-color)">--</div>
+      <div class="analytics-sub">%</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Total Records</div>
+      <div class="analytics-value" id="stat-total" style="color:var(--pm10-color)">--</div>
+      <div class="analytics-sub">data points</div>
+    </div>
+  </div>
+
+  <h2 class="section-title" id="historical-system-title">Historical Data &amp; System</h2>
+  <div class="bottom-row">
+
+    <div class="table-card">
+      <div class="table-header-row">
+        <span class="table-toolbar-hint" id="tableHint">Click column header to sort</span>
+        <div class="table-filter-shell">
+          <div class="table-filter-field">
+            <input type="text" id="dateFilter" placeholder="dd/mm/yyyy" aria-label="Filter by date"
+              style="
+                padding:9px 40px 9px 14px;
+                border:1px solid #cbd5e1;
+                border-radius:10px;
+                background:#f4f5f7;
+                color:#334155;
+                font-weight:500;
+                letter-spacing:-0.01em;
+                font-size:0.8rem;
+                line-height:1.2;
+                outline:none;
+                cursor:pointer;
+                min-width:148px;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.75), 0 0 0 1px rgba(255,255,255,0.25);
+              "/>
+            <span aria-hidden="true" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;pointer-events:none;color:#475569;opacity:0.95">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="4.5" y="5.5" width="15" height="14" rx="3" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 4.2v3M16 4.2v3M4.5 9.5h15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </div>
+          <button type="button" aria-label="Clear date filter" onclick="clearDateFilter()" style="
+            padding:9px 15px;
+            border:1px solid #cbd5e1;
+            border-radius:10px;
+            background:#ffffff;
+            color:#334155;
+            font-size:0.78rem;
+            cursor:pointer;
+            font-family:var(--font-body);
+            transition:all .15s;
+            line-height:1.2;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+          " onmouseover="this.style.color='#0f172a';this.style.borderColor='#94a3b8';this.style.background='#f8fafc'"
+             onmouseout="this.style.color='#334155';this.style.borderColor='#cbd5e1';this.style.background='#ffffff'">
+            Clear
+          </button>
+          <span id="filterCount" class="table-filter-summary"></span>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="dataTable" aria-describedby="tableHint filterCount">
+          <caption class="sr-only">Historical air quality records. Use the column headers to sort the table.</caption>
+          <thead>
+            <tr>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="0" onclick="sortTable(0)" style="width:32%">Timestamp</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="1" onclick="sortTable(1)" style="width:17%">PM2.5</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="2" onclick="sortTable(2)" style="width:17%">PM10</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="3" onclick="sortTable(3)" style="width:17%">Temp</th>
+              <th scope="col" tabindex="0" role="button" aria-sort="none" data-sort-col="4" onclick="sortTable(4)" style="width:17%">Hum</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr>
+              <td colspan="5">
+                <div class="loading-overlay">
+                  Load data to see historical records
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="system-card">
+      <div class="section-title">System Status</div>
+
+      <div class="sys-row">
+        <div class="sys-label">Last Update</div>
+        <div class="sys-val" id="sysLastUpdate">--</div>
+      </div>
+
+      <div class="sys-row">
+        <div class="sys-label">
+          <span class="sys-dot" id="sysDot"></span>
+          Connection
+        </div>
+        <div class="sys-val" id="sysConn">Offline</div>
+      </div>
+
+      <div class="sys-row">
+        <div class="sys-label">Total Records</div>
+        <div class="sys-val" id="sysTotalRec">--</div>
+      </div>
+
+      <div class="sys-row">
+        <div class="sys-label">Auto Refresh</div>
+        <div class="sys-val">Every 5 min</div>
+      </div>
+
+      <div class="refresh-wrap">
+        <div class="refresh-label">
+          <span>Next auto-refresh</span>
+          <span id="countdownText">5:00</span>
+        </div>
+        <div class="refresh-track">
+          <div class="refresh-fill" id="refreshFill" style="width:100%"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<div id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" aria-hidden="true" onclick="if(event.target===this) closeQR()">
+  <div class="qr-card">
+    <div class="qr-title" id="qrModalTitle">
+      <svg width="44" height="44" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 10px">
+        <defs>
+          <linearGradient id="gradQR" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#0284c7"/>
+            <stop offset="100%" stop-color="#7c3aed"/>
+          </linearGradient>
+        </defs>
+        <rect width="80" height="80" rx="22" fill="url(#gradQR)"/>
+        <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+        <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+        <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+        <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+      </svg>
+      Scan to Open Dashboard
+    </div>
+    <div id="qrCanvas"></div>
+    <div class="qr-url" id="qrUrlText"></div>
+    <button type="button" class="qr-close" onclick="closeQR()">Close</button>
+  </div>
+</div>
+
+
+<div id="toast" aria-live="polite" aria-atomic="true"></div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/th.js"></script>
+<script>
+// Air Quality Monitoring Dashboard - modularized script
+// Wrapped in an IIFE to avoid leaking internals into global scope.
+(function (global) {
+  /* ===================================================
+     STATE
+  =================================================== */
+  let allData  = [];      // All parsed rows
+  let sortCol  = 0;       // Current sort column index
+  let sortAsc  = false;   // Sort direction
+  let datePicker = null;
+
+  /* ===================================================
+     COLUMN NAME NORMALIZER
+  =================================================== */
+  const COL_MAP = {
+    'Timestamp':   ['timestamp', 'time', 'datetime', 'date', '????', '??????'],
+    'PM2.5':       ['pm2.5', 'pm25', 'pm2_5', 'pm2-5'],
+    'PM10':        ['pm10', 'pm_10'],
+    'Temperature': ['temperature', 'temp', '????????', 'tmp'],
+    'Humidity':    ['humidity', 'humi', 'humid', 'rh', '????????']
+  };
+
+  function normaliseRows(rows) {
+    if (!rows || !rows.length) return rows;
+
+    const sample = rows[0];
+    const keyMap = {};
+
+    Object.keys(sample).forEach(origKey => {
+      const trimmed = origKey.trim();
+      const lc      = trimmed.toLowerCase();
+
+      if (COL_MAP[trimmed]) {
+        keyMap[origKey] = trimmed;
+        return;
+      }
+
+      let matched = false;
+      for (const [canonical, aliases] of Object.entries(COL_MAP)) {
+        if (aliases.includes(lc)) {
+          keyMap[origKey] = canonical;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) keyMap[origKey] = trimmed;
+    });
+
+    return rows.map(row => {
+      const out = {};
+      Object.entries(row).forEach(([k, v]) => {
+        out[keyMap[k] || k] = v;
+      });
+      return out;
+    });
+  }
+
+  function parseTimestamp(value) {
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+    if (value === null || value === undefined) return null;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const normalized = raw.replace(/\s+/g, ' ');
+    const direct = new Date(normalized);
+    if (!Number.isNaN(direct.getTime())) return direct;
+
+    const m = normalized.match(
+      /^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/
+    );
+    if (!m) return null;
+
+    let a = Number(m[1]);
+    let b = Number(m[2]);
+    let c = Number(m[3]);
+    const hour = Number(m[4] || 0);
+    const minute = Number(m[5] || 0);
+    const second = Number(m[6] || 0);
+
+    let year;
+    let month;
+    let day;
+
+    if (m[1].length === 4) {
+      year = a;
+      month = b;
+      day = c;
+    } else if (m[3].length === 4) {
+      year = c;
+      if (a > 12 && b <= 12) {
+        day = a;
+        month = b;
+      } else if (b > 12 && a <= 12) {
+        month = a;
+        day = b;
+      } else {
+        day = a;
+        month = b;
+      }
+    } else {
+      return null;
+    }
+
+    if (
+      !Number.isInteger(year) ||
+      !Number.isInteger(month) ||
+      !Number.isInteger(day) ||
+      month < 1 || month > 12 ||
+      day < 1 || day > 31
+    ) {
+      return null;
+    }
+
+    const parsed = new Date(year, month - 1, day, hour, minute, second);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  /* ===================================================
+     AUTO-REFRESH / CHART DEFAULTS
+  =================================================== */
+  const REFRESH_SECS = 300;
+  let countdown  = REFRESH_SECS;
+  let isLoading  = false;   // Pause the countdown while data is loading
+  const hasChartLib = !!global.Chart;
+
+  if (hasChartLib) {
+    Chart.defaults.color       = '#64748b';
+    Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
+    Chart.defaults.font.family = "'DM Sans', sans-serif";
+  }
+
+  const charts = {};
+
+  function makeChart(id, datasets, yLabel) {
+    if (!hasChartLib) return null;
+    const ctx = document.getElementById(id).getContext('2d');
+    return new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              boxWidth: 8,
+              padding: 16,
+              font: { size: 11 },
+              usePointStyle: true,
+              pointStyle: 'circle',
+              generateLabels(chart) {
+                const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                base.forEach(l => { l.text = '  ' + l.text; });
+                return base;
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            borderColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              maxTicksLimit: 5,
+              maxRotation: 0,
+              autoSkip: true,
+              font: { size: 10 },
+              color: '#94a3b8'
+            },
+            border: { display: false }
+          },
+          y: {
+            grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+            title: { display: !!yLabel, text: yLabel, font: { size: 10 }, color: '#94a3b8' },
+            ticks: { font: { size: 10 }, color: '#94a3b8', padding: 6 },
+            border: { display: false, dash: [4, 4] }
+          }
+        },
+        elements: {
+          line:  { tension: 0.4, borderWidth: 2.5 },
+          point: { radius: 0, hitRadius: 16, hoverRadius: 4, hoverBorderWidth: 2 }
+        }
+      }
+    });
+  }
+
+  function initCharts() {
+    if (!hasChartLib) {
+      ['chartPm25', 'chartPm10', 'chartTempHum'].forEach(id => {
+        const canvas = document.getElementById(id);
+        if (!canvas || !canvas.parentElement) return;
+        canvas.style.display = 'none';
+        const fallback = document.createElement('div');
+        fallback.className = 'loading-overlay';
+        fallback.textContent = 'Charts are unavailable because Chart.js failed to load.';
+        canvas.parentElement.appendChild(fallback);
+      });
+      showToast('Chart.js failed to load. Dashboard data will still work without charts.');
+      return;
+    }
+
+    charts.pm25 = makeChart('chartPm25', [{
+      label: 'PM2.5 (\u00B5g/m\u00B3)',
+      borderColor: '#0284c7',
+      backgroundColor: (ctx) => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, 'rgba(2,132,199,0.15)');
+        g.addColorStop(1, 'rgba(2,132,199,0)');
+        return g;
+      },
+      fill: true,
+      data: []
+    }], '\u00B5g/m\u00B3');
+
+    charts.pm10 = makeChart('chartPm10', [{
+      label: 'PM10 (\u00B5g/m\u00B3)',
+      borderColor: '#7c3aed',
+      backgroundColor: (ctx) => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, 'rgba(124,58,237,0.15)');
+        g.addColorStop(1, 'rgba(124,58,237,0)');
+        return g;
+      },
+      fill: true,
+      data: []
+    }], '\u00B5g/m\u00B3');
+
+    const ctxTH = document.getElementById('chartTempHum').getContext('2d');
+    charts.tempHum = new Chart(ctxTH, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Temperature (\u00B0C)',
+            borderColor: '#ea580c',
+            backgroundColor: 'transparent',
+            fill: false,
+            data: [],
+            yAxisID: 'yTemp',
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHitRadius: 16,
+            pointHoverRadius: 4
+          },
+          {
+            label: 'Humidity (%)',
+            borderColor: '#16a34a',
+            backgroundColor: 'transparent',
+            fill: false,
+            data: [],
+            yAxisID: 'yHum',
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHitRadius: 16,
+            pointHoverRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              boxWidth: 8,
+              padding: 16,
+              font: { size: 11 },
+              usePointStyle: true,
+              pointStyle: 'circle',
+              generateLabels(chart) {
+                const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                base.forEach(l => { l.text = '  ' + l.text; });
+                return base;
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            borderColor: 'rgba(0,0,0,0.1)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              maxTicksLimit: 5,
+              maxRotation: 0,
+              autoSkip: true,
+              font: { size: 10 },
+              color: '#94a3b8'
+            },
+            border: { display: false }
+          },
+          yTemp: {
+            type: 'linear',
+            position: 'left',
+            grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+            title: { display: true, text: '\u00B0C', color: '#ea580c', font: { size: 10 } },
+            ticks: { color: '#ea580c', font: { size: 10 }, padding: 6 },
+            border: { display: false }
+          },
+          yHum: {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: '%', color: '#16a34a', font: { size: 10 } },
+            ticks: { color: '#16a34a', font: { size: 10 }, padding: 6 },
+            border: { display: false },
+            min: 0,
+            max: 100
+          }
+        }
+      }
+    });
+  }
+
+  /* ===================================================
+     UPDATE CHARTS WITH DATA
+  =================================================== */
+  function updateCharts(rows) {
+    if (!hasChartLib || !charts.pm25 || !charts.pm10 || !charts.tempHum) return;
+    const slice = rows.slice(-30);
+
+    const labels   = [];
+    const pm25Data = [];
+    const pm10Data = [];
+    const tempData = [];
+    const humData  = [];
+
+    for (let i = 0; i < slice.length; i++) {
+      const r = slice[i];
+      const d = parseTimestamp(r.Timestamp);
+
+      if (d) {
+        const day   = d.getDate();
+        const month = d.getMonth() + 1;
+        const hour  = String(d.getHours()).padStart(2, '0');
+        const mins  = String(d.getMinutes()).padStart(2, '0');
+        labels.push(`${day}/${month} ${hour}:${mins}`);
+      } else {
+        labels.push(r.Timestamp || '');
+      }
+
+      pm25Data.push(+r['PM2.5']             || 0);
+      pm10Data.push(+r['PM10']              || 0);
+      tempData.push(parseFloat(r['Temperature']) || 0);
+      humData.push(parseFloat(r['Humidity'])    || 0);
+    }
+
+    charts.pm25.data.labels              = labels;
+    charts.pm25.data.datasets[0].data    = pm25Data;
+    charts.pm25.update('none');
+
+    charts.pm10.data.labels              = labels;
+    charts.pm10.data.datasets[0].data    = pm10Data;
+    charts.pm10.update('none');
+
+    charts.tempHum.data.labels           = labels;
+    charts.tempHum.data.datasets[0].data = tempData;
+    charts.tempHum.data.datasets[1].data = humData;
+    charts.tempHum.update('none');
+  }
+
+  /* ===================================================
+     GAUGE METER
+  =================================================== */
+  const GAUGE_LEN = Math.PI * 85;
+
+  function initGauge() {
+    const fill = document.getElementById('gaugeFill');
+    fill.style.strokeDasharray  = GAUGE_LEN;
+    fill.style.strokeDashoffset = GAUGE_LEN;
+
+    const fill10 = document.getElementById('gaugeFill10');
+    fill10.style.strokeDasharray  = GAUGE_LEN;
+    fill10.style.strokeDashoffset = GAUGE_LEN;
+  }
+
+  function updateGauge(value) {
+    const maxVal = 150;
+    const pct  = Math.min(Math.max(value, 0) / maxVal, 1);
+    const fill = document.getElementById('gaugeFill');
+    fill.style.strokeDashoffset = GAUGE_LEN * (1 - pct);
+    const gn = document.getElementById('gaugeNum');
+    gn.classList.remove('pop'); void gn.offsetWidth;
+    gn.classList.add('pop');
+    gn.textContent = value.toFixed(1);
+  }
+
+  function updateGauge10(value) {
+    const maxVal = 300;
+    const pct  = Math.min(Math.max(value, 0) / maxVal, 1);
+    const fill = document.getElementById('gaugeFill10');
+    fill.style.strokeDashoffset = GAUGE_LEN * (1 - pct);
+    const gn10 = document.getElementById('gaugeNum10');
+    gn10.classList.remove('pop'); void gn10.offsetWidth;
+    gn10.classList.add('pop');
+    gn10.textContent = value.toFixed(1);
+  }
+
+  /* ===================================================
+     AIR QUALITY STATUS & DASHBOARD RENDER
+  =================================================== */
+  function getAQStatus(pm25) {
+    if (pm25 <=  50) return { cls: 'status-good',      label: 'Good',      color: '#78be21' };
+    if (pm25 <= 100) return { cls: 'status-moderate',  label: 'Moderate',  color: '#f5c400' };
+    if (pm25 <= 150) return { cls: 'status-unhealthy', label: 'Unhealthy for Sensitive Groups', color: '#f07d00' };
+    return                  { cls: 'status-hazardous', label: 'Unhealthy', color: '#dc2626' };
+  }
+
+  function renderDashboard(rows) {
+    if (!rows || rows.length === 0) {
+      showToast('No data found in the spreadsheet.');
+      return;
+    }
+
+    allData = rows;
+    _dataCacheSource = null;  // invalidate date filter cache
+    const n    = rows.length;
+    const last = rows[n - 1];
+    const prev = n > 1 ? rows[n - 2] : null;
+
+    const pm25 = parseFloat(last['PM2.5'])       || 0;
+    const pm10 = parseFloat(last['PM10'])        || 0;
+    const temp = parseFloat(last['Temperature']) || 0;
+    const hum  = parseFloat(last['Humidity'])    || 0;
+
+    // Current reading cards
+    // Remove skeleton
+    ['val-pm25','val-pm10','val-temp','val-hum'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('skeleton');
+    });
+    setText('val-pm25', pm25.toFixed(1), true);
+    setText('val-pm10', pm10.toFixed(1), true);
+    setText('val-temp', temp.toFixed(1), true);
+    setText('val-hum',  hum.toFixed(1), true);
+
+    setDelta('delta-pm25', pm25, prev ? +prev['PM2.5']       : null, '\u00B5g/m\u00B3');
+    setDelta('delta-pm10', pm10, prev ? +prev['PM10']        : null, '\u00B5g/m\u00B3');
+    setDelta('delta-temp', temp, prev ? +prev['Temperature'] : null, '\u00B0C');
+    setDelta('delta-hum',  hum,  prev ? +prev['Humidity']    : null, '%');
+
+    // AQ badge
+    const status = getAQStatus(pm25);
+    const badge  = document.getElementById('aqBadge');
+    badge.className = 'aq-status-badge ' + status.cls;
+    document.getElementById('aqDot').style.background = status.color;
+    document.getElementById('aqText').textContent =
+      status.label + ' - PM2.5 ' + pm25.toFixed(1) + ' \u00B5g/m\u00B3';
+
+    updateGauge(pm25);
+    updateGauge10(pm10);
+    updateCharts(rows);
+
+    // Analytics: single pass (was 2 separate loops before)
+    let pm25Sum = 0, pm25Min = Infinity, pm25Max = -Infinity;
+    let tempSum = 0, humSum  = 0;
+
+    for (let i = 0; i < n; i++) {
+      const r   = rows[i];
+      const v25 = parseFloat(r['PM2.5'])       || 0;
+      const vT  = parseFloat(r['Temperature']) || 0;
+      const vH  = parseFloat(r['Humidity'])    || 0;
+      pm25Sum += v25;
+      tempSum += vT;
+      humSum  += vH;
+      if (v25 < pm25Min) pm25Min = v25;
+      if (v25 > pm25Max) pm25Max = v25;
+    }
+
+    setText('stat-avgPm25', (pm25Sum / n).toFixed(1), true);
+    setText('stat-maxPm25', pm25Max.toFixed(1),         true);
+    setText('stat-minPm25', pm25Min.toFixed(1),         true);
+    setText('stat-avgTemp', (tempSum / n).toFixed(1),   true);
+    setText('stat-avgHum',  (humSum  / n).toFixed(1),   true);
+    setText('stat-total',   n,                          true);
+
+    // Reverse once, reuse (was [...rows].reverse() which creates a copy)
+    renderTable(rows.slice().reverse());
+
+    // Batch DOM writes - system status
+    const now = new Date().toLocaleTimeString('th-TH');
+    const latestTimestamp = last['Timestamp'] ? fmtTs(last['Timestamp']) : 'Latest reading available';
+    setText('sysLastUpdate', now);
+    setText('sysConn',       'Connected');
+    setText('sysTotalRec',   n + ' rows');
+    updateHeaderMeta(now, latestTimestamp, n + ' total rows');
+    setHeaderConnection('Live', 'var(--good)');
+
+    document.getElementById('sysDot').className = 'sys-dot live';
+
+    resetCountdown();
+  }
+
+  /* ===================================================
+     TABLE & FILTERING
+  =================================================== */
+  // Cache: pre-parsed ISO date strings per row (rebuilt when allData changes)
+  let _dateCache = null;
+  let _dataCacheSource = null;
+
+  function getDateCache() {
+    if (_dataCacheSource === allData) return _dateCache;
+    _dataCacheSource = allData;
+    _dateCache = allData.map(r => {
+      const d = parseTimestamp(r['Timestamp'] || '');
+      return d ? d.toISOString().slice(0, 10) : '';
+    });
+    return _dateCache;
+  }
+
+  function normalizeFilterDate(val) {
+    if (!val) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    const m = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? (m[3] + '-' + m[2] + '-' + m[1]) : val;
+  }
+
+  function filterByDate() {
+    const val = normalizeFilterDate(document.getElementById('dateFilter').value);
+    if (!val) {
+      renderTable(allData.slice().reverse());
+      setText('filterCount', '');
+      updateHeaderMeta(undefined, allData.length ? 'Latest reading available' : 'Latest reading ready', undefined);
+      return;
+    }
+
+    const cache = getDateCache();
+    const filtered = allData.filter((_, i) => cache[i] === val);
+
+    renderTable(filtered.slice().reverse());
+
+    const count = filtered.length;
+    const label = document.getElementById('filterCount');
+    label.textContent = count > 0 ? `${count} records on this date` : 'No records for this date';
+    label.style.color = count > 0 ? 'var(--good)' : 'var(--hazardous)';
+    updateHeaderMeta(undefined, 'Filtered: ' + document.getElementById('dateFilter').value, count + ' matching rows');
+  }
+
+  function clearDateFilter() {
+    if (datePicker) datePicker.clear();
+    else document.getElementById('dateFilter').value = '';
+    renderTable(allData.slice().reverse());
+    setText('filterCount', '');
+    updateHeaderMeta(undefined, allData.length ? 'Latest reading available' : 'Latest reading ready', allData.length ? allData.length + ' total rows' : 'No data loaded');
+  }
+
+  function initDatePicker() {
+    if (!global.flatpickr) return;
+    datePicker = global.flatpickr('#dateFilter', {
+      dateFormat: 'd/m/Y',
+      locale: global.flatpickr.l10ns.th || 'default',
+      monthSelectorType: 'static',
+      disableMobile: true,
+      allowInput: false,
+      clickOpens: true,
+      onChange: filterByDate
+    });
+  }
+  function renderTable(rows) {
+    const tbody = document.getElementById('tableBody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="loading-overlay">No records</div></td></tr>';
+      return;
+    }
+    // Use push+join instead of map for large datasets (avoids closure per row)
+    const parts = [];
+    for (let i = 0, len = rows.length; i < len; i++) {
+      const r = rows[i];
+      parts.push(
+        '<tr><td class="ts">'   + fmtTs(r['Timestamp'] || '') +
+        '</td><td class="pm25v">' + ((parseFloat(r['PM2.5'])      || 0).toFixed(1)) +
+        '</td><td class="pm10v">' + ((parseFloat(r['PM10'])        || 0).toFixed(1)) +
+        '</td><td class="tempv">' + ((parseFloat(r['Temperature']) || 0).toFixed(1)) +
+        '</td><td class="humv">'  + ((parseFloat(r['Humidity'])    || 0).toFixed(1)) +
+        '</td></tr>'
+      );
+    }
+    tbody.innerHTML = parts.join('');
+    // Stagger animation: cap at 20 rows to avoid perf hit
+    const rows2 = tbody.querySelectorAll('tr');
+    const cap = Math.min(rows2.length, 20);
+    for (let i = 0; i < cap; i++) {
+      rows2[i].style.animationDelay = (i * 18) + 'ms';
+    }
+  }
+
+  function updateSortIndicators() {
+    const headers = document.querySelectorAll('#dataTable th[data-sort-col]');
+    headers.forEach(th => {
+      const isActive = Number(th.dataset.sortCol) === sortCol;
+      th.setAttribute('aria-sort', isActive ? (sortAsc ? 'ascending' : 'descending') : 'none');
+    });
+  }
+
+  function sortTable(col) {
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+
+    const keys = ['Timestamp', 'PM2.5', 'PM10', 'Temperature', 'Humidity'];
+    const key  = keys[col];
+    const sorted = [...allData].sort((a, b) => {
+      const av = col === 0 ? (parseTimestamp(a[key])?.getTime() ?? Number.NEGATIVE_INFINITY) : +a[key];
+      const bv = col === 0 ? (parseTimestamp(b[key])?.getTime() ?? Number.NEGATIVE_INFINITY) : +b[key];
+      return (av > bv ? 1 : av < bv ? -1 : 0) * (sortAsc ? 1 : -1);
+    });
+    renderTable(sorted);
+    updateSortIndicators();
+  }
+
+  /* ===================================================
+     SPLASH & TOP BAR
+  =================================================== */
+  function splashProgress(pct, msg) {
+    document.getElementById('splashBar').style.width    = pct + '%';
+    document.getElementById('splashStatus').textContent = msg;
+  }
+
+  function splashHide() {
+    splashProgress(100, 'Ready');
+    setTimeout(() => {
+      document.getElementById('splash').classList.add('hide');
+    }, 400);
+  }
+
+  function topBarStart() {
+    const b = document.getElementById('topBar');
+    b.style.transition = 'width .3s ease, opacity .1s ease';
+    b.style.opacity    = '1';
+    b.style.width      = '70%';
+    b.classList.add('running');
+  }
+
+  function topBarDone() {
+    const b = document.getElementById('topBar');
+    b.classList.remove('running');
+    b.style.transition = 'width .25s ease, opacity .5s ease .3s';
+    b.style.width      = '100%';
+    setTimeout(() => { b.style.opacity = '0'; b.style.width = '0%'; }, 500);
+  }
+
+  function topBarError() {
+    const b = document.getElementById('topBar');
+    b.classList.remove('running');
+    b.style.background = '#dc2626';
+    b.style.width      = '100%';
+    setTimeout(() => {
+      b.style.opacity    = '0';
+      b.style.width      = '0%';
+      b.style.background = 'linear-gradient(90deg,#0284c7,#7c3aed,#0284c7)';
+      b.style.backgroundSize = '200% 100%';
+    }, 600);
+  }
+
+  /* ===================================================
+     DATA LOADING - fetch + CORS, JSONP fallback
+  =================================================== */
+  function loadData() {
+    const url = document.getElementById('sheetsUrl').value.trim();
+    if (!url) { showToast('Please enter an Apps Script URL.'); return; }
+
+    isLoading = true;
+    showToast('Loading data...');
+    setText('sysConn', 'Loading...');
+    updateHeaderMeta('Refreshing now...', 'Checking data source...', allData.length ? allData.length + ' cached rows' : 'Preparing dataset');
+    setHeaderConnection('Syncing', 'var(--accent)');
+    topBarStart();
+    ['val-pm25','val-pm10','val-temp','val-hum'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('skeleton');
+    });
+    fetchLoad(url);
+  }
+
+  function fetchLoad(url) {
+    const sep     = url.includes('?') ? '&' : '?';
+    const fullUrl = url + sep + '_t=' + Date.now();
+    let   done    = false;
+
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true; isLoading = false;
+      topBarError();
+      splashProgress(100, 'Timeout');
+      setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
+      showToast('Request timed out. Check the URL and deploy permissions.');
+      setText('sysConn', 'Timeout');
+      updateHeaderMeta('Sync timeout', 'Connection needs attention', allData.length ? allData.length + ' cached rows' : 'No cached data');
+      setHeaderConnection('Issue', 'var(--hazardous)');
+      document.getElementById('sysDot').className = 'sys-dot err';
+    }, 15000);
+
+    fetch(fullUrl)
+      .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
+      .then(text => {
+        if (done) return;
+        clearTimeout(timer); done = true;
+        let json;
+        const t = text.trim();
+        if (t.startsWith('[') || t.startsWith('{')) {
+          json = JSON.parse(t);
+        } else {
+          const m = t.match(/[^(]+[(](.+)[)]\s*;?\s*$/s);
+          if (!m) throw new Error('Unsupported response format');
+          json = JSON.parse(m[1]);
+        }
+        const raw  = Array.isArray(json) ? json : (json.data || json.values || []);
+        const rows = normaliseRows(raw);
+        console.log('[AQM] fetch OK -', rows.length, 'rows');
+        isLoading = false;
+        renderDashboard(rows);
+        topBarDone(); splashHide();
+        showToast('Loaded ' + rows.length + ' rows successfully.');
+      })
+      .catch(err => {
+        if (done) return;
+        clearTimeout(timer);
+        console.warn('[AQM] fetch failed, JSONP fallback...', err.message);
+        jsonpFallback(document.getElementById('sheetsUrl').value.trim());
+      });
+  }
+
+  function jsonpFallback(url) {
+    const old = document.getElementById('__aqmScript');
+    if (old) old.remove();
+    const cbName  = '__aqmCb';
+    const sep     = url.includes('?') ? '&' : '?';
+    const fullUrl = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
+
+    const onFail = (msg) => {
+      delete global[cbName];
+      const s = document.getElementById('__aqmScript');
+      if (s) s.remove();
+      isLoading = false; topBarError();
+      splashProgress(100, 'Connection failed');
+      setTimeout(() => document.getElementById('splash').classList.add('hide'), 800);
+      showToast(msg);
+      setText('sysConn', 'Error');
+      updateHeaderMeta('Connection failed', 'Unable to reach source', allData.length ? allData.length + ' cached rows' : 'No cached data');
+      setHeaderConnection('Issue', 'var(--hazardous)');
+      document.getElementById('sysDot').className = 'sys-dot err';
+    };
+
+    const timer = setTimeout(() => onFail('Timeout - check the URL and deploy permissions'), 15000);
+
+    global[cbName] = function(json) {
+      clearTimeout(timer);
+      delete global[cbName];
+      const s = document.getElementById('__aqmScript');
+      if (s) s.remove();
+      try {
+        const raw  = Array.isArray(json) ? json : (json.data || json.values || []);
+        const rows = normaliseRows(raw);
+        console.log('[AQM] JSONP OK -', rows.length, 'rows');
+        isLoading = false;
+        renderDashboard(rows); topBarDone(); splashHide();
+        showToast('Loaded ' + rows.length + ' rows successfully.');
+      } catch(e) { onFail('Parse error: ' + e.message); }
+    };
+
+    const script   = document.createElement('script');
+    script.id      = '__aqmScript';
+    script.src     = fullUrl;
+    script.onerror = () => { clearTimeout(timer); onFail('Load failed - check the URL and deploy permissions'); };
+    document.head.appendChild(script);
+  }
+
+  /* ===================================================
+     EXPORT / CSV
+  =================================================== */
+  function exportPDF() {
+    if (!allData.length) {
+      showToast('No data yet - click Reload Data first.');
+      return;
+    }
+
+    const now = new Date().toLocaleString('th-TH', { dateStyle:'long', timeStyle:'short' });
+
+    const esc = v => String(v ?? '--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    const fmtForPdf = ts => {
+      const d = new Date(ts);
+      if (isNaN(d)) return esc(ts);
+      return d.toLocaleString('th-TH', {
+        year:'numeric',
+        month:'2-digit',
+        day:'2-digit',
+        hour:'2-digit',
+        minute:'2-digit',
+        second:'2-digit',
+        hour12: false
+      });
+    };
+
+    const rows = [...allData].reverse();
+    const rowsHtml = rows.map(r => `
+      <tr>
+        <td>${fmtForPdf(r['Timestamp'])}</td>
+        <td>${(+r['PM2.5'] || 0).toFixed(1)}</td>
+        <td>${(+r['PM10']  || 0).toFixed(1)}</td>
+        <td>${(parseFloat(r['Temperature']) || 0).toFixed(1)}</td>
+        <td>${(parseFloat(r['Humidity'])    || 0).toFixed(1)}</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Historical Data - Air Quality</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: #fff; color: #0f172a; padding: 32px 40px; font-size: 11pt; }
+    .report-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #0284c7; }
+    .logo { width: 46px; height: 46px; background: linear-gradient(135deg,#0284c7,#7c3aed); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .report-header h1 { font-size: 16pt; font-weight: 700; }
+    .report-header p  { font-size: 9pt; color: #64748b; margin-top: 2px; }
+    .meta { display: flex; gap: 24px; margin-bottom: 18px; font-size: 9pt; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    thead tr { background: #0284c7; color: #fff; }
+    thead th { padding: 9px 12px; text-align: left; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; }
+    thead th:not(:first-child) { text-align: right; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody td { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+    tbody td:first-child { color: #64748b; font-size: 9pt; }
+    tbody td:not(:first-child) { font-weight: 600; text-align: right; }
+    .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; display: flex; justify-content: space-between; }
+    @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { padding: 20px 28px; } }
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <div class="logo" style="background:none;box-shadow:none;padding:0;overflow:hidden"><svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="22" fill="url(#grad3)"/>
+  <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+  <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+</svg></div>
+    <div><h1>Historical Data Report</h1><p>Air Quality Monitoring System</p></div>
+  </div>
+  <div class="meta">
+    <span>Export: ${now}</span>
+    <span>Total: ${rows.length} records</span>
+  </div>
+  <table>
+    <thead><tr><th>Timestamp</th><th>PM2.5 (&micro;g/m&sup3;)</th><th>PM10 (&micro;g/m&sup3;)</th><th>Temp (&deg;C)</th><th>Humidity (%)</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="footer"><span>Air Quality Monitoring Dashboard</span><span>${now}</span></div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const win  = window.open(url, '_blank');
+    if (win) {
+      win.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+    } else {
+      showToast('Please allow pop-ups in your browser first.');
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function downloadCSV() {
+    if (!allData.length) {
+      showToast('No data yet - click Reload Data first.');
+      return;
+    }
+
+    const headers = ['Timestamp', 'PM2.5', 'PM10', 'Temperature', 'Humidity'];
+    const lines   = [
+      headers.join(','),
+      ...allData.map(r =>
+        headers.map(h => `"${(r[h] !== undefined ? r[h] : '')}"`).join(',')
+      )
+    ];
+
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href     = URL.createObjectURL(blob);
+    link.download = 'air_quality_' + new Date().toISOString().slice(0, 10) + '.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+    showToast('CSV downloaded (' + allData.length + ' rows).');
+  }
+
+  /* ===================================================
+     AUTO-REFRESH TICK
+  =================================================== */
+  function resetCountdown() {
+    countdown = REFRESH_SECS;
+  }
+
+  setInterval(() => {
+    // Pause the countdown during loading and resume when fresh data arrives.
+    if (isLoading) return;
+
+    countdown = Math.max(0, countdown - 1);
+
+    if (countdown === 0) {
+      countdown = REFRESH_SECS;
+      if (document.getElementById('sheetsUrl').value.trim()) {
+        loadData();
+      }
+    }
+
+    const pct  = (countdown / REFRESH_SECS) * 100;
+    const mins = Math.floor(countdown / 60);
+    const secs = String(countdown % 60).padStart(2, '0');
+
+    document.getElementById('refreshFill').style.width    = pct + '%';
+    document.getElementById('countdownText').textContent  = `${mins}:${secs}`;
+  }, 1000);
+
+  /* ===================================================
+     HELPERS
+  =================================================== */
+
+  function setText(id, val, animate = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (animate && el.textContent !== String(val)) {
+      el.classList.remove('updating', 'pop');
+      void el.offsetWidth; // force reflow
+      el.classList.add(el.classList.contains('card-value') ? 'updating' :
+                       el.classList.contains('analytics-value') || el.classList.contains('gauge-number') ? 'pop' : '');
+      el.textContent = val;
+      el.addEventListener('animationend', () => el.classList.remove('updating','pop'), { once: true });
+    } else {
+      el.textContent = val;
+    }
+  }
+  function updateHeaderMeta(lastSync, rangeText, recordText) {
+    if (lastSync !== undefined) setText('headerLastSync', lastSync);
+    if (rangeText !== undefined) setText('headerRange', rangeText);
+    if (recordText !== undefined) setText('headerRecordCount', recordText);
+  }
+
+  function setHeaderConnection(state, color) {
+    setText('headerStatus', state);
+    const hd = document.getElementById('headerDot');
+    if (!hd) return;
+    hd.classList.remove('live-glow');
+    hd.style.background = color;
+    hd.style.boxShadow = color === 'var(--good)' ? '0 0 7px var(--good)' : color === 'var(--accent)' ? '0 0 7px rgba(2,132,199,0.35)' : '0 0 7px rgba(220,38,38,0.2)';
+    if (state === 'Live') hd.classList.add('live-glow');
+  }
+
+  function setDelta(id, cur, prev, unit) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (prev === null || isNaN(prev)) {
+      el.textContent = 'Latest reading';
+      el.style.color = '';
+      return;
+    }
+    const diff = cur - prev;
+    const sign = diff > 0 ? '+' : '';
+    el.textContent = `${sign}${diff.toFixed(1)} ${unit} vs prev`;
+    el.style.color = diff > 0 ? 'var(--hazardous)' : diff < 0 ? 'var(--good)' : 'var(--muted)';
+  }
+
+  function fmtTs(ts, short = false) {
+    if (!ts) return '--';
+    const d = parseTimestamp(ts);
+    if (!d) return String(ts);
+    if (short) return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3800);
+  }
+
+
+  /* ===================================================
+     QR CODE
+  =================================================== */
+  let _qrInstance = null;
+  let lastFocusedElement = null;
+
+  const STORAGE_KEY   = 'aqm-script-url';
+  const DASHBOARD_URL = global.location.href;
+
+  function openQR() {
+    lastFocusedElement = document.activeElement;
+    const modal   = document.getElementById('qrModal');
+    const wrap    = document.getElementById('qrCanvas');
+    const urlText = document.getElementById('qrUrlText');
+
+    urlText.textContent = DASHBOARD_URL;
+    wrap.innerHTML = '';
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { const closeBtn = modal.querySelector('.qr-close'); if (closeBtn) closeBtn.focus(); }, 0);
+
+    if (!global.QRCode) {
+      wrap.innerHTML = '<div style="padding:24px 18px;border:1px dashed #cbd5e1;border-radius:14px;color:#64748b;font-size:0.82rem;text-align:center">QR library unavailable<br>Open this link directly instead.</div>';
+      showToast('QR generator is unavailable right now.');
+      return;
+    }
+
+    try {
+      _qrInstance = new QRCode(wrap, {
+        text: DASHBOARD_URL,
+        width: 220,
+        height: 220,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    } catch (err) {
+      wrap.innerHTML = '<div style="padding:24px 18px;border:1px dashed #cbd5e1;border-radius:14px;color:#64748b;font-size:0.82rem;text-align:center">Unable to render QR<br>Open this link directly instead.</div>';
+      showToast('Unable to render QR code.');
+      return;
+    }
+
+    setTimeout(() => {
+      const qrImg = wrap.querySelector('img') || wrap.querySelector('canvas');
+      if (!qrImg) return;
+
+      const c = document.createElement('canvas');
+      c.width = 220;
+      c.height = 220;
+      const ctx = c.getContext('2d');
+      if (!ctx) return;
+
+      const drawLogo = () => {
+        ctx.drawImage(qrImg, 0, 0, 220, 220);
+        const logoSize = 48;
+        const x = (220 - logoSize) / 2;
+        const y = (220 - logoSize) / 2;
+
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        if (typeof ctx.roundRect === 'function') {
+          ctx.beginPath();
+          ctx.roundRect(x - 4, y - 4, logoSize + 8, logoSize + 8, 12);
+          ctx.shadowColor = 'rgba(0,0,0,0.15)';
+          ctx.shadowBlur = 6;
+          ctx.fill();
+        } else {
+          ctx.fillRect(x - 4, y - 4, logoSize + 8, logoSize + 8);
+        }
+        ctx.restore();
+
+        const svgStr = `<svg width="${logoSize}" height="${logoSize}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="gL" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#0284c7"/>
+              <stop offset="100%" stop-color="#7c3aed"/>
+            </linearGradient>
+          </defs>
+          <rect width="80" height="80" rx="22" fill="url(#gL)"/>
+          <path d="M28 52 C28 52 20 36 36 24 C52 12 60 28 52 38 C46 46 34 44 28 52Z" fill="white" fill-opacity="0.95"/>
+          <path d="M28 52 C32 44 40 38 48 30" stroke="#0284c7" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M55 34 C58 34 61 31 61 28" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+          <path d="M55 40 C61 40 66 36 66 30" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+          <path d="M55 46 C63 46 70 40 70 32" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+        </svg>`;
+        const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+        const svgUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, x, y, logoSize, logoSize);
+          URL.revokeObjectURL(svgUrl);
+          qrImg.replaceWith(c);
+        };
+        img.src = svgUrl;
+      };
+
+      if (qrImg.tagName === 'IMG') {
+        if (qrImg.complete) drawLogo();
+        else qrImg.onload = drawLogo;
+      } else {
+        drawLogo();
+      }
+    }, 50);
+  }
+
+  function closeQR() {
+    const modal = document.getElementById('qrModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    _qrInstance = null;
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+      lastFocusedElement.focus();
+    }
+  }
+
+  // Close the QR modal with Escape.
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQR(); });
+
+  /* ===================================================
+     STARTUP & SETTINGS
+  =================================================== */
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQVa8DL21CDDQTb4ffwNd8UQSwQXItb23IMkQjTQRzaFr73s_Vd2z28IJrZ5tJeRttCg/exec';
+
+  function bootstrap() {
+    initCharts();
+    initGauge();
+    initDatePicker();
+
+    splashProgress(30, 'Starting dashboard...');
+    const savedUrl = global.localStorage.getItem(STORAGE_KEY);
+    document.getElementById('sheetsUrl').value = savedUrl || SCRIPT_URL;
+
+    setTimeout(() => splashProgress(60, 'Loading latest data...'), 300);
+    loadData();
+
+    let logoClickCount = 0;
+    let logoClickTimer = null;
+    const logoTrigger = document.getElementById('logoTrigger');
+
+    logoTrigger.addEventListener('click', function() {
+      logoClickCount++;
+      clearTimeout(logoClickTimer);
+      logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 600);
+
+      if (logoClickCount >= 3) {
+        logoClickCount = 0;
+        const panel = document.getElementById('settingsPanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+
+    logoTrigger.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        logoTrigger.click();
+      }
+    });
+
+    document.querySelectorAll('#dataTable th[data-sort-col]').forEach(th => {
+      th.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          sortTable(Number(th.dataset.sortCol));
+        }
+      });
+    });
+
+    updateSortIndicators();
+  }
+
+  function closeSettings() {
+    document.getElementById('settingsPanel').style.display = 'none';
+  }
+
+  function saveAndLoad() {
+    const url = document.getElementById('sheetsUrl').value.trim();
+    if (!url) {
+      showToast('Please enter an Apps Script URL.');
+      return;
+    }
+    global.localStorage.setItem(STORAGE_KEY, url);
+    closeSettings();
+    loadData();
+    showToast('Saved URL and started loading data.');
+  }
+
+  // Public API exposed for HTML event handlers
+  global.AirQualityDashboard = {
+    bootstrap,
+    loadData,
+    exportPDF,
+    downloadCSV,
+    filterByDate,
+    clearDateFilter,
+    saveAndLoad,
+    closeSettings,
+    sortTable
+  };
+
+  // Maintain backward compatibility with existing inline handlers (if any)
+  global.loadData      = loadData;
+  global.exportPDF     = exportPDF;
+  global.downloadCSV   = downloadCSV;
+  global.filterByDate  = filterByDate;
+  global.clearDateFilter = clearDateFilter;
+  global.saveAndLoad   = saveAndLoad;
+  global.closeSettings = closeSettings;
+  global.sortTable     = sortTable;
+  global.openQR        = openQR;
+  global.closeQR       = closeQR;
+
+  // Kick off app once DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
+})(window);
+
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
