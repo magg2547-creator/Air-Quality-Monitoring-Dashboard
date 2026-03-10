@@ -53,61 +53,31 @@ function parseTimestamp(value) {
     if (value instanceof Date) {
       return Number.isNaN(value.getTime()) ? null : value;
     }
-    if (value === null || value === undefined) return null;
+    if (value === null || value === undefined || String(value).trim() === '') {
+      return null;
+    }
 
     const raw = String(value).trim();
-    if (!raw) return null;
 
-    const normalized = raw.replace(/\s+/g, ' ');
-    const direct = new Date(normalized);
-    if (!Number.isNaN(direct.getTime())) return direct;
+    // กำหนดรูปแบบวันที่ที่มักจะมาจาก Google Sheets เพื่อให้ Day.js ช่วยแปลง
+    const formats = [
+      'YYYY-MM-DDTHH:mm:ss.SSSZ', // ISO Format
+      'YYYY-MM-DD HH:mm:ss',
+      'YYYY-MM-DD',
+      'DD/MM/YYYY HH:mm:ss',
+      'DD/MM/YYYY',
+      'MM/DD/YYYY HH:mm:ss',
+      'MM/DD/YYYY'
+    ];
 
-    const m = normalized.match(
-      /^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/
-    );
-    if (!m) return null;
+    // ใช้ dayjs พร้อม plugin (ที่ดึงมาจาก index.html) ช่วยประมวลผล
+    const parsed = dayjs(raw, formats, false); 
 
-    let a = Number(m[1]);
-    let b = Number(m[2]);
-    let c = Number(m[3]);
-    const hour = Number(m[4] || 0);
-    const minute = Number(m[5] || 0);
-    const second = Number(m[6] || 0);
-
-    let year;
-    let month;
-    let day;
-
-    if (m[1].length === 4) {
-      year = a;
-      month = b;
-      day = c;
-    } else if (m[3].length === 4) {
-      year = c;
-      if (a > 12 && b <= 12) {
-        day = a;
-        month = b;
-      } else if (b > 12 && a <= 12) {
-        month = a;
-        day = b;
-      } else {
-        day = a;
-        month = b;
-      }
-    } else {
-      return null;
+    if (parsed.isValid()) {
+      return parsed.toDate();
     }
 
-    if (
-      !Number.isInteger(year) ||
-      !Number.isInteger(month) ||
-      !Number.isInteger(day) ||
-      month < 1 || month > 12 ||
-      day < 1 || day > 31
-    ) {
-      return null;
-    }
-
-    const parsed = new Date(year, month - 1, day, hour, minute, second);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    // กรณีที่เจอ Format แปลกๆ ให้ Fallback กลับไปใช้วิธีพื้นฐานของ JavaScript
+    const fallbackDate = new Date(raw);
+    return Number.isNaN(fallbackDate.getTime()) ? null : fallbackDate;
   }
