@@ -108,7 +108,7 @@
       </button>
       <button type="button" class="btn btn-outline btn-refresh" onclick="loadData()" aria-label="Reload dashboard data">Reload <span class="btn-label">Data</span></button>
       <button type="button" class="btn btn-outline btn-csv" onclick="downloadCSV()" aria-label="Download CSV file">Download <span class="btn-label">CSV</span></button>
-      <button type="button" class="btn btn-primary btn-pdf" onclick="exportPDF()" aria-label="Export report as PDF">Export <span class="btn-label">PDF</span></button>
+      <button type="button" class="btn btn-primary btn-pdf" onclick="openExportModal()" aria-label="Export report as PDF">Export <span class="btn-label">PDF</span></button>
     </div>
   </header>
 
@@ -426,6 +426,11 @@
           </tbody>
         </table>
       </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+        <button type="button" class="btn btn-outline" id="btnPrevPage" onclick="changePage(-1)" style="padding: 6px 12px; font-size: 0.75rem;" disabled>&laquo; ก่อนหน้า</button>
+        <span id="pageInfo" style="font-size: 0.75rem; color: var(--muted); font-weight: 600;">หน้า 1 / 1</span>
+        <button type="button" class="btn btn-outline" id="btnNextPage" onclick="changePage(1)" style="padding: 6px 12px; font-size: 0.75rem;" disabled>ถัดไป &raquo;</button>
+      </div>
     </div>
 
     <div class="system-card">
@@ -450,8 +455,31 @@
       </div>
 
       <div class="sys-row">
+        <div class="sys-label">แจ้งเตือนฝุ่น (PM2.5 > 100)</div>
+        
+        <label class="toggle-switch" title="เปิด/ปิด การแจ้งเตือน">
+          <input type="checkbox" id="notifToggleCb" onchange="toggleNotifications()">
+          <span class="toggle-slider"></span>
+        </label>
+
+      </div>
+
+      <div class="sys-row" style="flex-wrap: wrap;">
         <div class="sys-label">Auto Refresh</div>
-        <div class="sys-val">Every 5 min</div>
+        
+        <div class="refresh-toggle">
+          <input type="radio" id="rt-1m" name="rtGroup" value="60" onchange="changeRefreshInterval(this.value)">
+          <label for="rt-1m">1m</label>
+
+          <input type="radio" id="rt-5m" name="rtGroup" value="300" onchange="changeRefreshInterval(this.value)" checked>
+          <label for="rt-5m">5m</label>
+
+          <input type="radio" id="rt-15m" name="rtGroup" value="900" onchange="changeRefreshInterval(this.value)">
+          <label for="rt-15m">15m</label>
+
+          <input type="radio" id="rt-pause" name="rtGroup" value="-1" onchange="changeRefreshInterval(this.value)">
+          <label for="rt-pause">Pause</label>
+        </div>
       </div>
 
       <div class="refresh-wrap">
@@ -493,12 +521,45 @@
     <button type="button" class="qr-close" onclick="closeQR()">Close</button>
   </div>
 </div>
+<div id="exportModal" role="dialog" aria-modal="true" aria-hidden="true" onclick="if(event.target===this) closeExportModal()" 
+  style="position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px); z-index: 10000;">
+  
+  <div class="qr-card" style="max-width: 320px;">
+    <div class="qr-title" style="margin-bottom: 8px;">
+      <span style="font-size: 24px; display: block; margin-bottom: 12px;">📄</span>
+      Export PDF Report
+    </div>
+    <p style="font-size: 0.78rem; color: #64748b; margin-bottom: 18px; line-height: 1.5;">
+      เลือกวันที่ที่ต้องการดาวน์โหลดรายงาน หรือเว้นว่างไว้เพื่อดาวน์โหลดข้อมูลทั้งหมด
+    </p>
+    
+    <div style="margin-bottom: 20px; text-align: left;">
+      <label for="pdfDateFilter" style="display: block; font-size: 0.7rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px;">เลือกวันที่</label>
+      <input type="text" id="pdfDateFilter" placeholder="ดึงข้อมูลทั้งหมด" aria-label="Select date for PDF"
+        style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; color: #0f172a; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; outline: none; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);" />
+      <div style="text-align: right; margin-top: 6px;">
+        <button type="button" onclick="if(pdfDatePicker) pdfDatePicker.clear(); else document.getElementById('pdfDateFilter').value='';" style="background: none; border: none; font-size: 0.7rem; color: #0ea5e9; cursor: pointer; text-decoration: underline;">เคลียร์วันที่</button>
+      </div>
+    </div>
 
+    <div style="display: flex; gap: 10px;">
+      <button type="button" class="btn btn-outline" onclick="closeExportModal()" style="flex: 1; justify-content: center;">ยกเลิก</button>
+      <button type="button" class="btn btn-primary" onclick="confirmExportPDF()" style="flex: 1; justify-content: center;">ดาวน์โหลด</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast" aria-live="polite" aria-atomic="true"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/th.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/plugin/customParseFormat.min.js"></script>
+<script>
+  // เปิดใช้งาน Plugin customParseFormat เพื่อให้รองรับวันที่หลายรูปแบบ
+  dayjs.extend(window.dayjs_plugin_customParseFormat);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="data.js"></script>
 <script src="charts.js"></script>
 <script src="script.js"></script>
