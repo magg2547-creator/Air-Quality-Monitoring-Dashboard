@@ -647,16 +647,31 @@ td.humv  { color: var(--hum);  }
    MODALS — PDF EXPORT (native dialog)
 ============================================================ */
 #pdfModal {
+  /* Reset browser defaults */
   border: none; padding: 0; background: transparent;
-  max-width: 100vw; max-height: 100vh;
+  /* Force true center on all browsers */
+  position: fixed;
+  inset: 0;
+  width: fit-content;
+  height: fit-content;
+  margin: auto;
+  max-width: min(94vw, 480px);
+  max-height: 90vh;
+  overflow-y: auto;
+  /* Stacking */
+  z-index: 10001;
 }
-#pdfModal::backdrop { background: rgba(15,23,42,.55); backdrop-filter: blur(4px); }
-#pdfModal[open] .pdf-card { animation: slideUp .25s cubic-bezier(.34,1.56,.64,1); }
-@keyframes slideUp { from { transform: translateY(24px); opacity:0; } to { transform: none; opacity:1; } }
+#pdfModal::backdrop {
+  background: rgba(15,23,42,.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+#pdfModal[open] .pdf-card { animation: slideUp .28s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes slideUp { from { transform: translateY(20px) scale(.97); opacity:0; } to { transform: none; opacity:1; } }
 .pdf-card {
   background: var(--surface); border-radius: var(--radius-lg);
-  padding: 24px; width: min(94vw, 460px);
-  box-shadow: var(--shadow-lg);
+  padding: 24px 28px; width: min(94vw, 460px);
+  box-shadow: 0 24px 60px rgba(15,23,42,.22), 0 4px 16px rgba(15,23,42,.1);
 }
 .pdf-card-title {
   display: flex; align-items: center; gap: 10px;
